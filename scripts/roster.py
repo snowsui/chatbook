@@ -61,6 +61,7 @@ def extra(p):
 
 
 LOOKUP = {}  # 称呼 → 编号（apply 时填好，nums 用它把称呼换成编号）
+AMBIG = {}   # 几个人用过的名字 → 编号列表（报错时提示写编号）
 
 
 def nums(s):
@@ -77,6 +78,8 @@ def nums(s):
             out.append(int(x))
         elif x in LOOKUP:
             out.append(LOOKUP[x])
+        elif x in AMBIG:
+            sys.exit(f'「{x}」有几个人用过（编号 {"、".join(map(str, AMBIG[x]))}）：写编号或 work/roster.md 里带（2）的称呼')
         else:
             sys.exit(f'认不出「{x}」：写编号（1,2,5 或 1-3）或 work/roster.md 里的称呼')
     return out
@@ -536,6 +539,8 @@ def apply(D, a):
         for n in {e['name']} | set(e['raw']):
             owners[n].add(N[g])
     LOOKUP.update({n: next(iter(v)) for n, v in owners.items() if len(v) == 1})
+    LOOKUP.update({e['name']: N[g] for g, e in ents.items()})  # 名单上的称呼唯一（重名已加（2）），优先按它认
+    AMBIG.update({n: sorted(v) for n, v in owners.items() if len(v) > 1 and n not in LOOKUP})
     part = dict(base)
     renames, split_names, touched = {}, {}, set()
     newg = max(part.values(), default=0) + 1

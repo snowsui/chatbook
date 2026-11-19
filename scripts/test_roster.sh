@@ -216,6 +216,12 @@ import json,sys; al=json.load(open(sys.argv[1]))['aliases']
 assert '小雨（2）' not in al, al
 assert al.get('u_y1') == al.get('u_y2') == '小雨', al" "$M/chronicle.config.json" || fail "合并后不应写重名后缀别名"
 ok "合并重名两人：账号别名指向同一称呼，不写带（2）的别名"
+M2="$T/remerge2"; cp -r "$P" "$M2"
+$PY "$HERE/roster.py" --project "$M2" build >/dev/null
+$PY "$HERE/roster.py" --project "$M2" apply --merge "小雨=小雨（2）" >/dev/null || fail "按称呼合并重名两人应能认出"
+cmp -s <($PY -c "import json,sys;print(json.load(open(sys.argv[1]))['aliases'])" "$M/chronicle.config.json") \
+       <($PY -c "import json,sys;print(json.load(open(sys.argv[1]))['aliases'])" "$M2/chronicle.config.json") || fail "按称呼合并应与按编号合并结果相同"
+ok "按称呼合并重名两人（小雨=小雨（2））与按编号结果相同"
 
 echo "7. 编号范围；两人私聊不误标机器人"
 $PY "$HERE/roster.py" --project "$P" apply --members "$(N 大熊)-$(N 大熊)" >/dev/null || fail "范围写法 a-b"
