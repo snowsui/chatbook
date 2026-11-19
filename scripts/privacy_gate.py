@@ -21,7 +21,7 @@ build_chronicle / build_stories / build_portraits / build_stats / package_site �
 - realname：config.real_names（列表，或 {显示名: 真名/[真名…]}）；出现在小剧场里算 ★，其他页面是普通警告。
 - ★ persona：公开页面的输入里引用 out/personas/ 下的文件，或出现人物模型的章节标题（大五人格、对照清单…）。
 - ★ money / address：大事记（stable/ 事件、top10 理由）、人物志、月报年报（out/digest/*.md）里带数字的金额
-  （28k、3万、500元、¥200）和门牌住址（3号楼、2单元、501室、某某路12号），config.public_detail 为 standard（缺省）时；
+  （28k、3万、500元、¥200；中文数字的“补助八百”“预算十几万”“借了三千”要求前后有钱相关的词）和门牌住址（3号楼、2单元、501室、某某路12号），config.public_detail 为 standard（缺省）时；
   public_detail=full 时降为下面的普通警告。小剧场是虚构，不查这两条。
 - builtin：内置分层词表（健康/外貌体重/孕育/感情婚恋/家庭矛盾/金额/住址/证件账号/工作单位职级/醉酒），宽松匹配，普通警告。
 闸门只认逐字或近似命中：换了说法的（“那件事”“你懂的”、打比方）机器认不出，要靠人看。
@@ -60,6 +60,14 @@ BUILTIN = {
 
 # 带数字的金额、门牌住址（作用在去掉空白标点、小写后的文本上）：public_detail=standard 时公开的非虚构页面里算重点
 MONEY = r'\d+(?:\.\d+)?(?:万|千|w|k)(?:块|元)?|\d+(?:块|元|rmb)|￥\d|¥\d'
+# 中文数字金额（补助八百、预算十几万、月薪两万五、借了三千块）：数字里要有 百/千/万 或后面跟 块/元/k，
+# 后面不能是量词（一万个不愿意、三千米），前 8 字、后 6 字内还要有钱相关的词（“块钱”“元”本身就算；单个“块”不算，
+# “吃了三块”多半是块数）——“三分手感”“一万个不愿意”这类不报
+MONEY_CN_NOT = r'[多来]?(?:个|次|人|天|斤|公里|里|米|字|条|遍|分|岁|年|页|张|首|集|步|层|楼|号|名|位|件|本|章|句|小时|钟|秒|周|月|度|克|倍|场|口|台|部)'
+MONEY_CN = (r'(?:[一二两三四五六七八九十几][零一二两三四五六七八九十百千万几]*(?:多|来)?(?:块钱|块|元|k|w)'
+            r'|[一二两三四五六七八九十几][零一二两三四五六七八九十几]*[百千万][零一二两三四五六七八九十百千万几]*(?:多|来)?(?:块钱|块|元|k|w)?)'
+            rf'(?!{MONEY_CN_NOT})')
+MONEY_CTX = re.compile(r'钱|元|工资|薪|预算|补助|补贴|借|还[钱款了给他你我她]|价|花|offer|租|奖金|红包|转账|收入|存款|首付|贷|赚|挣|卖|买|费|报销|欠|贵|便宜|rmb')
 ADDRESS = r'\d+号楼|\d+栋|\d+单元|\d+室|\d+弄|\d+号院|路\d+号|街\d+号|门牌号?\d+'
 
 # 人物模型的章节标题 / 专有字样（出现在公开页面输入里 = 重点）
@@ -138,9 +146,19 @@ class Rules:
         self.real = [(w, norm(w)[0]) for w in real_names(cfg)]
         self.builtin = {k: re.compile(v) for k, v in BUILTIN.items()}
         self.money = re.compile(MONEY)
+        self.money_cn = re.compile(MONEY_CN)
         self.address = re.compile(ADDRESS)
         self.persona = re.compile(PERSONA_MARKS)
         self.pii = [(n, re.compile(p), t, chk) for n, p, t, chk in PII]
+
+
+def cn_money(rules, n):
+    """去掉空白标点后的文本里，中文数字写的金额 → [(起, 止)]。要求前 8 字、后 6 字内有钱相关的词，后面不是量词。"""
+    out = []
+    for m in rules.money_cn.finditer(n):
+        if m.group().endswith(('钱', '元')) or MONEY_CTX.search(n[max(0, m.start() - 8):m.start()] + '|' + n[m.end():m.end() + 6]):
+            out.append((m.start(), m.end()))
+    return out
 
 
 def _ctx(text, a, b, width=14):
@@ -209,6 +227,8 @@ def scan_text(rules, where, text, realname_block=False, builtin=True, excerpt=Fa
     if money_block and not excerpt:
         for m in rules.money.finditer(n):
             add('money', 'block', m.start(), m.end(), pos, '具体金额（public_detail=standard，公开页面只写概括）')
+        for a, b in cn_money(rules, n):
+            add('money', 'block', a, b, pos, '具体金额（public_detail=standard，公开页面只写概括）')
         for m in rules.address.finditer(n):
             add('address', 'block', m.start(), m.end(), pos, '具体住址（public_detail=standard，公开页面不写门牌）')
     if builtin and not excerpt:
@@ -218,6 +238,9 @@ def scan_text(rules, where, text, realname_block=False, builtin=True, excerpt=Fa
                                     or (tier == '住址' and rules.address.fullmatch(m.group()))):
                     continue
                 add('builtin', 'warn', m.start(), m.end(), pos, '内置词表·' + tier)
+        if not money_block:
+            for a, b in cn_money(rules, n):
+                add('builtin', 'warn', a, b, pos, '内置词表·金额')
     return hits
 
 

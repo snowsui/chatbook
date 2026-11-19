@@ -94,4 +94,4 @@
 - **疑似真名**：卡片里出现某人的本名、伴侣的名字——小传里不写群昵称以外的真名。
 - 卡片间如有矛盾，回 chunks 原文核对。
 
-完成后自查：grep 禁区关键词与真名；跑 `python3 "{{skill}}/scripts/verify_citations.py" --project "{{project}}" --person "{{person}}" --md "out/portraits/{{person}}.md" --strict`，把「问题」和「未标注」清零（报告 `work/review/{{person}}-citations.md` 同时就是给终审的引语出处表，含每条引语的前后语境）。回复：文件路径、字数、品藻、你最满意的一个段落的小标题、拿不准需要用户确认的点。
+完成后自查：grep 禁区关键词与真名；跑 `{{run_verify_citations}} --person "{{person}}" --md "out/portraits/{{person}}.md" --strict`，把「问题」和「未标注」清零（报告 `work/review/{{person}}-citations.md` 同时就是给终审的引语出处表，含每条引语的前后语境）。回复：文件路径、字数、品藻、你最满意的一个段落的小标题、拿不准需要用户确认的点。

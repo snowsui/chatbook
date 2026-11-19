@@ -17,6 +17,6 @@ One month was split into several chunks and events were extracted from each. Mer
 - Rewrite `month_summary` for the whole month (≤90 characters).
 - Sort `events` by `date` (same day: keep the original order).
 - Same format as the chunks: valid JSON, UTF-8, non-ASCII not escaped (`ensure_ascii=False`), 1-space indent; field order in each event is date, title, summary, people, category, heat, refs, groups. Keep `category` as the internal code (人生节点 / 聚会出行 / 群内热议 / 名场面).
-- After merging, the coordinator runs `scripts/check_events.py`.
+- **Self-check before you report** (same script and rules as the coordinator's check stage): `{{check_cmd}}`. Fix until 0 unresolved warnings; name any legitimate exception and the reason in your reply.
 
 When done, reply with one line: for each month `<month>: N before → M after`, separated by semicolons.

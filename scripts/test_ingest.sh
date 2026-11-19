@@ -56,6 +56,32 @@ EOF
 run "$HERE/check_events.py" --project "$P" | tee "$P/check.txt"
 grep -q 'refs 在 all.json 里找不到：X999' "$P/check.txt"
 if $PY "$HERE/check_events.py" --project "$P" --strict >/dev/null; then echo '--strict 应失败'; exit 1; fi
+# 代词与性别（启发式，宁可少报）+ 已确认保留（--allow）：放在 work/cktest/，不影响下面的冻结
+mkdir -p "$P/work/cktest"
+$PY - "$P/work/cktest/2019-03.json" <<'EOF2'
+import json, sys
+S = ['老周说她八点到', '阿然说他请饮料', '老周和米粒都来了，她带了水果', '老周说她妈妈也来', '老周弹吉他，其他人鼓掌',
+     '青禾和阿然约好，她们一起去', '老周提议聚餐。她说好', '老周 said she would come', '豆豆和老周都说她迟到了']
+ev = [{"date": "2019-03-02", "title": "约爬山", "summary": x, "people": ["老周"], "category": "聚会出行", "heat": 1,
+       "refs": ["A0", "A2"], "groups": ["主群"]} for x in S]
+ev.append({"date": "2019-03-02", "title": "只有一条", "summary": "就一条", "people": ["老周"], "category": "聚会出行", "heat": 1,
+           "refs": ["A0"], "groups": ["主群"]})
+json.dump({"month": "2019-03", "month_summary": "测", "events": ev}, open(sys.argv[1], 'w'), ensure_ascii=False)
+EOF2
+run "$HERE/check_events.py" --project "$P" --dir cktest | tee "$P/ck.txt"
+for i in 0 1 7 8; do grep -q "^  - #$i .*代词\|^  - #$i .*却用了" "$P/ck.txt" || { echo "#$i 应报代词与性别不符"; exit 1; }; done
+for i in 2 3 4 5 6; do if grep -q "^  - #$i .*却用了" "$P/ck.txt"; then echo "#$i 不该报代词"; exit 1; fi; done
+grep -q '未处理 5 条：代词与性别不符 4，refs 数量 1' "$P/ck.txt" || { echo '应有 5 条未处理'; exit 1; }
+grep -q '还没冻结，直接改 work/cktest/' "$P/ck.txt" || { echo '冻结前应提示直接改事件文件'; exit 1; }
+if $PY "$HERE/check_events.py" --project "$P" --dir cktest --strict >/dev/null; then echo '--strict 有未处理警告应失败'; exit 1; fi
+if $PY "$HERE/check_events.py" --project "$P" --allow A:1001 --rule 'refs 不存在' >/dev/null 2>&1; then echo '硬性警告不能标保留'; exit 1; fi
+$PY "$HERE/check_events.py" --project "$P" --dir cktest --allow A:1001 --rule 数量 --note 测试 >/dev/null
+$PY "$HERE/check_events.py" --project "$P" --dir cktest --allow A:1001 --rule 代词 >/dev/null
+$PY "$HERE/check_events.py" --project "$P" --dir cktest --strict | tee "$P/ck2.txt"          # 全部标过 → 未处理 0，--strict 通过
+grep -q '已确认保留 5 条，未处理 0 条' "$P/ck2.txt" || { echo '标过后应未处理 0 条'; exit 1; }
+grep -q '（已确认保留：测试）' "$P/ck2.txt" || { echo '应显示保留理由'; exit 1; }
+grep -q '"rule": "数量"' "$P/work/check_allow.json"
+rm "$P/work/check_allow.json"
 run "$HERE/freeze.py" "$P"                     # 位置参数写法也兼容
 grep -q '"A:1001"' "$P/work/stable/2019-03.json"
 cat > "$P/fix.json" <<'EOF'

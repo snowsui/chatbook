@@ -14,6 +14,7 @@
   extra_heat2     heat≥2 却匹配不上任何标准事件（口径同 recall）的产出事件数——精确度粗估；
                   标准事件 ±1 天内、与标准参与者有交集的不算（单列为 near_truth_heat2：余波/拆条）。
                   语料写作时约定“计划外不制造大事”，所以 extra 多半是把日常闲聊抬高了热度（或写作员加了戏，需人工看）。
+  extra_heat2_per_month  extra_heat2 ÷ 评估范围的月数（断言用这个：全量与子集可比）。
   refs_valid      refs 能在 all.json 找到（稳定键或序号 ID）的比例；refs_in_window：匹配上的事件里 refs 落在
                   标准日期 ±2 天内的比例。
   html_recall     与流程无关的网页粗召回：out/*.html 里某个日期写法（±2 天）前后 300 字内出现标准关键词。
@@ -144,11 +145,13 @@ def score_events(proj, truth, cfg, allm, span):
             extra.append(line)
     refs = [r for e in evs for r in e.get('refs') or []]
     valid = sum(r in byk for r in refs)
+    nmon = max(1, (int(hi[:4]) - int(lo[:4])) * 12 + int(hi[5:7]) - int(lo[5:7]) + 1)
     return {'scope': [lo, hi], 'truth_events': len(tev), 'output_events': len(evs),
             'output_heat2plus': sum(int(e.get('heat') or 0) >= 2 for e in evs),
             'recall': round(hit / len(tev), 3) if tev else None,
             'recall_heat': round(wsum / wtot, 3) if wtot else None,
-            'extra_heat2': len(extra), 'extra_heat2_list': extra, 'near_truth_heat2': len(frag), 'near_truth_heat2_list': frag,
+            'extra_heat2': len(extra), 'extra_heat2_per_month': round(len(extra) / nmon, 2),
+            'extra_heat2_list': extra, 'near_truth_heat2': len(frag), 'near_truth_heat2_list': frag,
             'refs_valid': round(valid / len(refs), 3) if refs else None,
             'refs_in_window': round(in_win[0] / in_win[1], 3) if in_win[1] else None,
             'detail': detail}
@@ -447,7 +450,7 @@ def to_md(r):
         L += ['## 事件', '', f'没有 work/stable 或 work/events（多半是无 skill 基线），只算网页粗召回 html_recall = {fmt(ev.get("html_recall"))}', '']
     elif ev:
         L += ['## 事件', '', f'范围 {ev["scope"][0]} ~ {ev["scope"][1]}；标准 {ev["truth_events"]} 件，产出 {ev["output_events"]} 件（heat≥2：{ev["output_heat2plus"]}）', '',
-              '| 指标 | 值 |', '|---|---|'] + [f'| {k} | {fmt(ev[k])} |' for k in ('recall', 'recall_heat', 'html_recall', 'extra_heat2', 'near_truth_heat2', 'refs_valid', 'refs_in_window')]
+              '| 指标 | 值 |', '|---|---|'] + [f'| {k} | {fmt(ev[k])} |' for k in ('recall', 'recall_heat', 'html_recall', 'extra_heat2', 'extra_heat2_per_month', 'near_truth_heat2', 'refs_valid', 'refs_in_window')]
         L += ['', '| 标准事件 | 日期 | 热度 | 匹配到 |', '|---|---|---|---|']
         L += [f'| {d["id"]} {d["title"]} | {d["date"]} | {d["heat"]} | {"<br>".join(d["matched"]) or "**漏**"} |' for d in ev['detail']]
         if ev['extra_heat2_list']:

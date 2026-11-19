@@ -17,6 +17,6 @@
 - `month_summary` 根据全月重写（≤30 字）。
 - `events` 按 `date` 排序（同一天保持原来的先后）。
 - 格式与各段一致：合法 JSON、UTF-8、不转义中文（`ensure_ascii=False`）、缩进 1 格；每个事件的字段顺序为 date, title, summary, people, category, heat, refs, groups。
-- 合并后主控会跑 `scripts/check_events.py` 机检。
+- **交稿前自检**（与主控 check 阶段同一个脚本、同一口径）：`{{check_cmd}}`，按警告改到“未处理 0 条”再回报；确属合理的例外在回报里写明事件和理由。
 
 完成后只回复一行：每个月份 `<月份>: 合并前 N → 合并后 M`，分号隔开。

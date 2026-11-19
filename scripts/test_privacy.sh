@@ -157,6 +157,26 @@ printf '# 三月月报\n老周搬去了幸福路12号，房租3500元，上个�
 $PY "$G" --project "$P" --target digest >"$P/gate.log" 2>&1 || { cat "$P/gate.log"; fail '默认应只警告'; }
 grep -q '具体住址' "$P/gate.log" && grep -q '具体金额' "$P/gate.log" && grep -q '内置词表·工作单位职级' "$P/gate.log" || fail 'digest 规则'
 if $PY "$G" --project "$P" --target digest --strict >"$P/gate.log" 2>&1; then cat "$P/gate.log"; fail '严格模式下月报里的金额/住址应拦'; fi
+# 8b. 中文数字金额：要有钱相关的上下文；块数、量词、“一万个不愿意”这类不报
+$PY - "$HERE" <<'EOF'
+import sys
+sys.path.insert(0, sys.argv[1])
+from pathlib import Path
+from privacy_gate import Rules, scan_text
+r = Rules(Path('/nonexistent'), {})
+def money(t, block=True):
+    return [h['match'] for h in scan_text(r, 't', t, money_block=block) if h['rule'] == 'money' or h['label'] == '内置词表·金额']
+hit = {'补助一个月八百': '八百', '预算十几万的车': '十几万', '月薪两万五': '两万五', '借了三千': '三千', '房租两千五一个月': '两千五',
+       'offer给了三十万': '三十万', '还了他五百块': '五百块', '补助八百块钱': '八百块钱', '咸鱼三百八卖了': '三百八'}
+for t, want in hit.items():
+    assert want in money(t), (t, money(t))
+assert any(h['rule'] == 'money' and h['severity'] == 'block' for h in scan_text(r, 't', '借了三千', money_block=True))
+assert any(h['label'] == '内置词表·金额' and h['severity'] == 'warn' for h in scan_text(r, 't', '借了三千', money_block=False))  # full 档降为警告
+for t in ['三分手感', '一万个不愿意', '跑了三千米', '三百多人参加', '十几个人', '一千零一夜', '读了三百页', '还有十几万字',
+          '一下午吃了三块', '我还以为是三千', '花了三个月', '万一下雨', '花了一万多个小时', '两千多年前的事']:
+    assert not [m for m in money(t) if not any(c.isdigit() for c in m)], (t, money(t))
+print('中文数字金额：命中', len(hit), '条，不误报 14 条')
+EOF
 printf '\n他家在3号楼2单元。\n' >> "$P/out/portraits/老周.md"
 if $PY "$G" --project "$P" --target portraits --strict >"$P/gate.log" 2>&1; then fail '严格模式下人物志里的门牌应拦'; fi
 grep -q '具体住址' "$P/gate.log" || fail 'address'

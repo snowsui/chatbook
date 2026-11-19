@@ -19,7 +19,7 @@
         {"file": "out/chronicle.html"},
         {"metric": "events.recall", "op": ">=", "value": 0.75},
         {"metric": "events.html_recall", "op": ">=", "value": 0.6},
-        {"metric": "events.extra_heat2", "op": "<=", "value": 15},
+        {"metric": "events.extra_heat2_per_month", "op": "<=", "value": 5},
         {"metric": "events.refs_valid", "op": ">=", "value": 0.98},
         {"metric": "privacy.public_hits", "op": "==", "value": 0}
       ]

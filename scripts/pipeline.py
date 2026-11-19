@@ -2,10 +2,12 @@
 
 用法：
   python3 scripts/pipeline.py --project <dir> status                 进度表 + 下一步建议
-  python3 scripts/pipeline.py --project <dir> next [--limit 8] [--peek]
+  python3 scripts/pipeline.py --project <dir> next [--limit 8] [--peek] [--batch-lines 1000]
         列出下一批可派的任务（子任务数受 --limit 并发上限约束，已在 doing 的也占名额）：
         任务 id、用哪份 prompt、填说明的完整命令、模型建议 cheap/strong、产出路径；
         列出的任务记为 doing、尝试次数 +1（--peek 只看不记）。
+        read 阶段把相邻的短分段合成一批派给一个子任务（合计不超过 --batch-lines 行，默认 1000；0 = 不合批，
+        一段一个任务）：一条 fill_prompt --files 带多个分段，判定仍按每个分段各自的产出。补读剩余行的分段不合批。
   python3 scripts/pipeline.py --project <dir> mark <任务> done|failed [--note 说明]
   python3 scripts/pipeline.py --project <dir> reset <任务或阶段>      回到 todo、尝试次数清零
 
@@ -49,7 +51,7 @@ STAGES = [
          desc='逐行阅读（standard/deep 用 00 统一阅读：事件+人物证据；lite 用 01 只抽事件）'),
     dict(name='collect', kind='script', unit='once', tiers=SD, deps=['read'], desc='卡片 → 事件文件 + 每人 evidence.md（核对 ID/说话人/原话）'),
     dict(name='merge', kind='llm', unit='month', prompt='02', model='cheap', tiers=ALL, deps=['read', 'collect'], desc='多段月份合并去重'),
-    dict(name='check', kind='script', unit='once', tiers=ALL, deps=['merge'], desc='事件机检（0 警告才算过）'),
+    dict(name='check', kind='script', unit='once', tiers=ALL, deps=['merge'], desc='事件机检（无未处理警告才算过；合理的可 --allow 标记保留）'),
     dict(name='freeze', kind='script', unit='once', tiers=ALL, deps=['check'], desc='refs 换稳定键 → work/stable/'),
     dict(name='chronicle', kind='script', unit='once', tiers=ALL, deps=['freeze'], desc='大事记页面 → out/chronicle.html'),
     dict(name='person-stats', kind='script', unit='once', tiers=SD, deps=['ingest'], desc='逐人切块、统计、metrics、turnmix（日常口径）'),
@@ -254,13 +256,15 @@ def check(ctx, tier, stage, unit):
             return None, '卡片有更新，重跑 collect'
         return True, ''
     if stage == 'check':
-        if mtime(first) < newest((P / 'work/events').glob('*.json')):
-            return None, '事件有更新，重跑机检'
+        if mtime(first) < max(newest((P / 'work/events').glob('*.json')), mtime(P / 'work/check_allow.json')):
+            return None, '事件或保留标记有更新，重跑机检'
         t = first.read_text(encoding='utf-8')
-        m = re.search(r'警告 (\d+) 条', t)
+        m = re.search(r'未处理 (\d+) 条', t) or re.search(r'警告 (\d+) 条', t)
         if m and m.group(1) == '0':
-            return True, '0 警告'
-        return False, f'机检 {m.group(1) if m else "?"} 条警告，见 work/check.txt（交回抽取/合并子任务或用 apply_fixes 修）'
+            k = re.search(r'已确认保留 (\d+) 条', t)
+            return True, '无未处理警告' + (f'（已确认保留 {k.group(1)} 条）' if k and k.group(1) != '0' else '')
+        return False, (f'机检 {m.group(1) if m else "?"} 条未处理警告，见 work/check.txt：还没冻结，直接改 work/events/<月>.json '
+                       '或交回抽取/合并子任务；看过确实合理的用 check_events.py --allow <键> --rule <规则> --note 理由 标记保留')
     if stage == 'chronicle' and mtime(first) < newest((P / 'work/stable').glob('*.json')):
         return None, 'stable 有更新，重新构建'
     if stage == 'build' and mtime(first) < newest((P / 'out/portraits').glob('*.md')):
@@ -278,6 +282,33 @@ def check(ctx, tier, stage, unit):
 
 # ---------------- 命令 ----------------
 
+def chunk_lines(P, unit):
+    try:
+        with open(P / 'work/chunks' / f'{unit}.txt', encoding='utf-8') as f:
+            return sum(1 for _ in f)
+    except OSError:
+        return 0
+
+
+def batches(P, tier, ids, target):
+    """read 任务 → 批次：相邻短分段合计不超过 target 行的合成一批；长分段、补读中的分段单独一批。"""
+    out, cur, n = [], [], 0
+    for t in ids:
+        u = t.split(':', 1)[1]
+        k = chunk_lines(P, u)
+        if target <= 0 or k >= target or (tier != 'lite' and read_progress(P, u)[0] > 0):
+            out.append([t])
+            continue
+        if cur and n + k > target:
+            out.append(cur)
+            cur, n = [], 0
+        cur.append(t)
+        n += k
+    if cur:
+        out.append(cur)
+    return out
+
+
 def commands(P, cfg, tier, stage, unit):
     q = shlex.quote
     py, proj = 'python3', f'--project {q(str(P))}'
@@ -286,10 +317,16 @@ def commands(P, cfg, tier, stage, unit):
     def fill(prompt, extra, tag=None):
         out = 'work/prompts/' + re.sub(r'[:/]', '-', tag or tid(stage, unit)) + '.md'
         return f'{py} {q(str(SK / "fill_prompt.py"))} {proj} --prompt {prompt}{extra} --out {q(out)}'
-    who = f' --person {q(unit)}' if unit else ''
     if stage == 'incremental':
         step, u = unit.split(':', 1)
         return [fill('01', f' --files {q(u + ".txt")}', unit)] if step == 'extract' else [s('incremental.py', ' --merge-tail')]
+    if stage == 'read' and isinstance(unit, list):  # 一批相邻短分段
+        tag = f'read:{unit[0]}--{unit[-1]}'
+        files = ' '.join(q(u + '.txt') for u in unit)
+        if tier == 'lite':
+            return [fill('01', f' --files {files}', tag)]
+        return [fill('00', f' --files {files} --set {q("people=" + "、".join(cfg.get("people") or []))}', tag)]
+    who = f' --person {q(unit)}' if unit else ''
     if stage == 'read' and tier != 'lite':
         got, lines = read_progress(P, unit)
         more = f' --from-line {got + 1}' if lines and 0 < got < lines else ''
@@ -466,13 +503,14 @@ def kind_of(t, r):
     return INC_KIND.get(r.get('step'), 'llm') if r.get('stage') == 'incremental' else BY[r['stage']]['kind']
 
 
-def cmd_next(P, cfg, tier, st, by_stage, limit, peek):
+def cmd_next(P, cfg, tier, st, by_stage, limit, peek, batch_lines=1000):
     tasks = st['tasks']
     slots = limit - sum(1 for t, r in tasks.items() if r['status'] == 'doing' and kind_of(t, r) == 'llm')
     picked, held = [], []
     for name, ids in by_stage.items():
         if not ids or not ready(st, by_stage, name):
             continue
+        elig = []
         for t in ids:
             r = tasks[t]
             if r['status'] not in ('todo', 'failed'):
@@ -483,36 +521,44 @@ def cmd_next(P, cfg, tier, st, by_stage, limit, peek):
             if t.startswith('merge-tail:') and any(x.startswith(f'extract:{t[11:]}_tail_') and tasks[x]['status'] != 'done'
                                                    for x in ids):
                 continue
-            if kind_of(t, r) == 'llm':
+            elig.append(t)
+        for g in (batches(P, tier, elig, batch_lines) if name == 'read' else [[t] for t in elig]):
+            if kind_of(g[0], tasks[g[0]]) == 'llm':
                 if slots <= 0:
                     continue
                 slots -= 1
-            picked.append(t)
+            picked.append(g)
     if not picked:
         print('现在没有可派的任务。' + (f'已达尝试上限、需人工处理：{"、".join(held)}' if held else '') + '（`status` 看详情）')
         return
-    for t in picked:
+    for g in picked:
+        t = g[0]
         r = tasks[t]
         name = r['stage']
         unit = t.split(':', 1)[1] if ':' in t else None
         s = BY[name]
         k = kind_of(t, r)
         prompt = ('01' if tier == 'lite' else '00') if name == 'read' else (s.get('prompt') if k == 'llm' else None)
-        print(f'## {t}  [{"脚本，主控直接跑" if k == "script" else "子任务 · " + MODEL[s["model"]]}]  {s["desc"]}')
+        units_ = [x.split(':', 1)[1] for x in g] if len(g) > 1 else []
+        head = t if len(g) == 1 else f'{t} … {g[-1]}（{len(g)} 段合一批，共 {sum(chunk_lines(P, u) for u in units_)} 行）'
+        print(f'## {head}  [{"脚本，主控直接跑" if k == "script" else "子任务 · " + MODEL[s["model"]]}]  {s["desc"]}')
         if prompt:
             print(f'- prompt：prompts/{prompt}-*.md')
         print('- 命令：')
-        for c in commands(P, cfg, tier, name, t if name == 'incremental' else unit):
+        for c in commands(P, cfg, tier, name, units_ if len(g) > 1 else (t if name == 'incremental' else unit)):
             print(f'    {c}')
         if k == 'llm':
-            print(f'  然后把 work/prompts/{re.sub(r"[:/]", "-", t)}.md 发给子任务'
+            tag = re.sub(r'[:/]', '-', t if len(g) == 1 else f'read:{units_[0]}--{units_[-1]}')
+            print(f'  然后派一个子任务：说明里给 {P / "work/prompts" / (tag + ".md")} 的绝对路径，让它先用 Read 读完全文再照做'
                   + (f'（说明末尾注明块号 {unit.split("/")[1]}）' if name == 'deepread' else ''))
-        print(f'- 产出：{"、".join(r["out"])}')
-        if r.get('status') == 'failed' and r.get('note'):
-            print(f'- 上次不合格：{r["note"]}')
+        print(f'- 产出：{"、".join(o for x in g for o in tasks[x]["out"])}')
+        for x in g:
+            if tasks[x].get('status') == 'failed' and tasks[x].get('note'):
+                print(f'- 上次不合格（{x}）：{tasks[x]["note"]}')
         print()
         if not peek:
-            r.update(status='doing', attempts=r.get('attempts', 0) + 1, updated=now())
+            for x in g:
+                tasks[x].update(status='doing', attempts=tasks[x].get('attempts', 0) + 1, updated=now())
     if held:
         print(f'已达尝试上限、需人工处理：{"、".join(held)}')
     if not peek:
@@ -524,6 +570,8 @@ def main():
                                  p.add_argument('rest', nargs='*', help='mark: <任务> done|failed；reset: <任务或阶段>'),
                                  p.add_argument('--limit', type=int, default=8, help='next：子任务并发上限（含进行中的），默认 8'),
                                  p.add_argument('--peek', action='store_true', help='next：只列出，不记 doing'),
+                                 p.add_argument('--batch-lines', type=int, default=1000,
+                                                help='next：read 阶段相邻短分段合批的行数上限，默认 1000；0 = 一段一个任务'),
                                  p.add_argument('--note', default='', help='mark：备注'),
                                  p.add_argument('--tier', choices=ALL, help='临时覆盖 config.tier')))
     P, cfg = a.project, a.cfg
@@ -532,7 +580,7 @@ def main():
     if a.cmd == 'status':
         cmd_status(P, cfg, tier, st, by_stage)
     elif a.cmd == 'next':
-        cmd_next(P, cfg, tier, st, by_stage, a.limit, a.peek)
+        cmd_next(P, cfg, tier, st, by_stage, a.limit, a.peek, a.batch_lines)
     elif a.cmd == 'mark':
         if len(a.rest) != 2 or a.rest[1] not in ('done', 'failed'):
             sys.exit('用法：mark <任务> done|failed')

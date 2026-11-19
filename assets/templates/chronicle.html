@@ -149,6 +149,17 @@ main{max-width:1240px;margin:0 auto;padding:0 var(--gut) 40px}
 .ev.k-big .lock{color:rgba(242,233,214,.45)}
 .ev.k-big .seal{position:absolute;right:30px;top:-18px;width:62px;height:62px;font-size:19px;writing-mode:vertical-rl;transform:rotate(9deg);opacity:.95;box-shadow:inset 0 0 0 3px var(--zhu),inset 0 0 0 5px var(--paper-hi),0 6px 14px rgba(0,0,0,.25)}
 
+.top10{margin:0 0 8px;padding:26px 0 30px;border-bottom:1px solid var(--rule)}
+.top10 h2{font:900 13px/1 var(--serif);letter-spacing:.5em;color:var(--zhu);margin-bottom:6px}
+.top10 .tn{font:400 13px var(--hand);color:var(--ink-3);margin-bottom:12px}
+.top10 ol{list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 30px;counter-reset:t}
+.top10 li button{display:grid;grid-template-columns:2.2em minmax(0,1fr);gap:0 8px;width:100%;text-align:left;padding:9px 0;border-bottom:1px dashed var(--rule);counter-increment:t}
+.top10 li button::before{content:counter(t);grid-row:1/3;font:900 22px/1.1 var(--serif);color:var(--zhu)}
+.top10 .tt{font:700 16px/1.4 var(--serif);color:var(--ink)}
+.top10 .tm{font:400 12px var(--sans);color:var(--ink-3);letter-spacing:.06em}
+.fold{grid-column:1/-1;justify-self:start;font:700 13px var(--serif);letter-spacing:.15em;color:var(--ink-3);padding:8px 14px;border:1px dashed var(--ink-3);border-radius:4px}
+.fold:hover{color:var(--zhu);border-color:var(--zhu)}
+.ev.flash{box-shadow:0 0 0 3px var(--zhu)}
 .empty{padding:120px 0;text-align:center;font:400 20px var(--hand);color:var(--ink-3)}
 
 /* ---------- 聊天抽屉 ---------- */
@@ -181,6 +192,7 @@ footer p{font:400 14px/1.9 var(--hand);color:var(--ink-3)}
 
 @media (max-width:860px){
   .evs{grid-template-columns:minmax(0,1fr)}
+  .top10 ol{grid-template-columns:minmax(0,1fr)}
   .month{grid-template-columns:minmax(0,1fr);padding-top:36px}
   .mhead{position:relative;top:0;margin-bottom:14px}
   .mname{writing-mode:horizontal-tb;font-size:40px}
@@ -262,7 +274,7 @@ const GZ=y=>"甲乙丙丁戊己庚辛壬癸"[(y-4)%10]+"子丑寅卯辰巳午未
 const SX=y=>"鼠牛虎兔龙蛇马羊猴鸡狗猪"[(y-4)%12];
 const cnYear=y=>[...String(y)].map(d=>CN[d]).join("");
 const cnMonth=m=>["","一","二","三","四","五","六","七","八","九","十","十一","十二"][m]+"月";
-const st={big:false,cat:null,who:"",y:"",m:""};
+const st={big:false,cat:null,who:"",y:"",m:"",open:new Set()};
 const $=s=>document.querySelector(s);
 const el=(t,c,txt)=>{const e=document.createElement(t);if(c)e.className=c;if(txt!=null)e.textContent=txt;return e};
 const allEv=DATA.months.flatMap(m=>m.events);
@@ -317,6 +329,7 @@ function card(e,mo){
   const big=e.heat===3,[kc,col]=CATS[e.category]||CATS["群内热议"];
   const c=el("article","ev "+(big?"k-big":kc));c.style.setProperty("--c",col);
   if(kc==="k-meme"&&!big)c.style.setProperty("--r",((e.title.length%5)-2)*.45+"deg");
+  c.id="e-"+e.id;
   const [,mm,dd]=e.date.split("-");
   if(big){const bd=el("div","bd",+dd);bd.append(el("small",null,cnMonth(+mm)));c.append(bd);const s=el("div","seal","大事");c.append(s)}
   const d=el("div","d");d.append(el("b",null,+mm+"·"+dd),el("span","cat",e.category),el("span","h","●".repeat(e.heat)));
@@ -339,19 +352,45 @@ function render(){
     const y=m.month.slice(0,4);
     if(y!==year){year=y;const Y=el("section","year");
       Y.append(el("div","num",y));const g=el("div","gz",GZ(+y));g.append(el("small",null,SX(+y)+"年"));Y.append(g);
-      const cn=el("div","cnt");cn.append(el("b",null,yc[y]),"件事");Y.append(cn);L.append(Y)}
+      const cn=el("div","cnt");cn.append(el("b",null,yc[y]),"件事");Y.append(cn);L.append(Y);
+      if(!st.cat&&!st.who&&!st.m&&DATA.top&&DATA.top[y]&&DATA.top[y].events.length)L.append(topBlock(y))}
     const sec=el("section","month");sec.id="m-"+m.month;
     sec.dataset.y=y;sec.dataset.m=cnMonth(+m.month.slice(5));
     const h=el("div","mhead"),hc=el("div","mhead-col");hc.append(el("div","myear",y),el("div","mname",cnMonth(+m.month.slice(5))));h.append(hc);
     const mt=el("div","mmeta");mt.append(el("b",null,m.count)," 条消息");h.append(mt);sec.append(h);
     if(m.summary)sec.append(el("p","msum",m.summary));
     const g=el("div","evs");
-    // 大事置顶，其余按日期
-    [...evs].sort((a,b)=>(b.heat===3)-(a.heat===3)||a.date.localeCompare(b.date)).forEach(e=>g.append(card(e,m)));
+    // 大事置顶，其余按日期；没筛选时 heat 1 的日常默认折叠（本月热度 2 以上的不足 2 件时，先露出两件日常）
+    const ord=[...evs].sort((a,b)=>(b.heat===3)-(a.heat===3)||a.date.localeCompare(b.date));
+    let show=ord,hide=[];
+    if(!st.big&&!st.cat&&!st.who&&!st.open.has(m.month)){
+      const lo=ord.filter(e=>e.heat<2),keep=new Set(ord.filter(e=>e.heat>=2));
+      lo.slice(0,Math.max(0,2-keep.size)).forEach(e=>keep.add(e));
+      show=ord.filter(e=>keep.has(e));hide=ord.filter(e=>!keep.has(e));
+    }
+    show.forEach(e=>g.append(card(e,m)));
+    if(hide.length){const b=el("button","fold","展开本月 "+hide.length+" 件日常");b.onclick=()=>{st.open.add(m.month);b.replaceWith(...hide.map(e=>card(e,m)));observe()};g.append(b)}
     sec.append(g);L.append(sec);shown+=evs.length;
   });
   if(!shown)L.append(el("div","empty","这里还空着，换个条件看看"));
   observe();syncNow();
+}
+
+/* 年度十大：没有 work/top10.json 时按热度自动挑；点一下跳到那件事（折叠着就先展开那个月） */
+function topBlock(y){
+  const t=DATA.top[y],box=el("section","top10");box.append(el("h2",null,y+" 年 度 十 大"));
+  if(t.note)box.append(el("div","tn","※ "+t.note));
+  const ol=el("ol");
+  t.events.forEach(e=>{const li=el("li"),b=el("button");b.title=e.reason||"";
+    b.append(el("span","tt",e.title),el("span","tm",e.date.replaceAll("-",".")+" · "+e.category+(e.people.length?" · "+e.people.join("、"):"")));
+    b.onclick=()=>jumpEvent(e);li.append(b);ol.append(li)});
+  box.append(ol);return box;
+}
+function jumpEvent(e){
+  if(st.big&&e.heat!==3||st.y&&!e.date.startsWith(st.y)){st.big=false;st.y="";st.m=""}
+  st.open.add(e.month);render();
+  const c=document.getElementById("e-"+e.id);if(!c)return;
+  c.classList.add("in");c.scrollIntoView({behavior:"smooth",block:"center"});c.classList.add("flash");setTimeout(()=>c.classList.remove("flash"),1600);
 }
 
 /* 顶栏当前年月 */

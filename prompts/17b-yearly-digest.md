@@ -1,8 +1,8 @@
-> 用途：给一年写一份「年度群报」（800–1500 字），可以跨年夜/年初发回群里｜何时用：这一年 12 个月（或已有的月份）都已冻结进 stable/ 之后｜输入：`{{project}}/work/stable/{{months}}-*.json`（全年事件）、`{{project}}/work/digest/{{months}}-stats.md`（全年统计，`incremental.py --stats {{months}}` 生成）、`{{project}}/out/digest/{{months}}-*.md`（若有：各月群报）、`{{project}}/work/top10.json`（若有：年度十大）｜输出：`{{project}}/out/digest/{{months}}.md`
+> 用途：给一年写一份「年度群报」（800–1500 字），可以跨年夜/年初发回群里｜何时用：这一年 12 个月（或已有的月份）都已冻结进 stable/ 之后｜输入：`{{project}}/work/stable/{{months}}-*.json`（全年事件）、`{{project}}/work/digest/{{months}}-stats.md`（全年统计，`{{run_incremental}} --stats {{months}}` 生成）、`{{project}}/out/digest/{{months}}-*.md`（若有：各月群报）、`{{project}}/work/top10.json`（若有：年度十大）｜输出：`{{project}}/out/digest/{{months}}.md`
 
 # 年度群报（{{months}} 年）
 
-`{{months}}` 在这里是年份（用 `fill_prompt.py --prompt 17b --months 2024` 生成）。
+`{{months}}` 在这里是年份（用 `{{run_fill_prompt}} --prompt 17b --months 2024` 生成）。
 
 你在给一个朋友群写这一年的“年度群报”：像年终聚会上，有人站起来把这一年捋一遍——有笑点，有几处让人安静一下的地方，但不是悼词，也不是年终总结报告。
 

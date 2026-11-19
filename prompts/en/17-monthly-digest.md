@@ -1,4 +1,4 @@
-> Purpose: write a 250–450-word "This month in the group" digest, light in tone, ready to post back to the group | When: after this month's events are frozen into stable/ (end of each incremental round, or a scheduled job early each month) | Input: `{{project}}/work/stable/{{months}}.json` (this month's events), `{{project}}/work/digest/{{months}}-stats.md` (counts, made by `incremental.py --stats {{months}}`) | Output: `{{project}}/out/digest/{{months}}.md`
+> Purpose: write a 250–450-word "This month in the group" digest, light in tone, ready to post back to the group | When: after this month's events are frozen into stable/ (end of each incremental round, or a scheduled job early each month) | Input: `{{project}}/work/stable/{{months}}.json` (this month's events), `{{project}}/work/digest/{{months}}-stats.md` (counts, made by `{{run_incremental}} --stats {{months}}`) | Output: `{{project}}/out/digest/{{months}}.md`
 
 # This month in the group ({{months}})
 

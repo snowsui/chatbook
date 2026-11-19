@@ -55,6 +55,8 @@ ingest 另写一个旁路文件 `work/senders.json`（每条消息的发送者�
 python3 <skill>/scripts/roster.py --project <dir> apply --core 1,2,5 --merge 3=7,8 --rename 2=大爷 --me 4 --drop 11
 ```
 
+- 几个人改称呼：`--rename 1=芳姐,2=小周`（逗号/顿号分隔多对）或每人写一个 `--rename`；新称呼里不能有逗号、顿号、分号、等号，格式不对直接报错、不写 config。几组合并：`--merge "3=7,8;4=9"`（逗号分隔同一组的成员，组与组之间用分号）或写多次 `--merge`。
+
 - 写回 config：`core`（核心人物）、`members`（不写 `--members` 且 config 里没有时 = 核心 + 推荐为成员的人 + 作者本人；`--members auto` 强制按推荐重算；`--members 3,4` = 核心 + 这些人 + 作者本人）、`me`、`aliases`（全部曾用名和被引用时的称呼 → 称呼；一个名字几个人用过就改用账号做键）。`people` 不写，缺省 = core。
 - `--rename` 会把 config 里 members/core/people/gender/nicknames/deep_read/stats.core 跟着改；`--split 9` 把同名的几个账号拆开，重名的加（2）；`--drop` 的人从名单去掉，以后 auto 也不收。
 - 编号可以写 `1,2,5`、`1-3`、`1、2、5`、`"1 2 5"`，也可以直接写 roster.md 里的称呼（`--core 小鹿,大熊`）；认不出的会说哪个认不出。

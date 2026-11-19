@@ -1,4 +1,4 @@
-> 用途：给一个月写一份 300–600 字的「本月群报」，轻松口吻，可以直接发回群里｜何时用：这个月的事件已冻结进 stable/ 之后（增量更新的每一轮末尾，或定时任务每月初）｜输入：`{{project}}/work/stable/{{months}}.json`（本月事件）、`{{project}}/work/digest/{{months}}-stats.md`（本月统计，`incremental.py --stats {{months}}` 生成）｜输出：`{{project}}/out/digest/{{months}}.md`
+> 用途：给一个月写一份 300–600 字的「本月群报」，轻松口吻，可以直接发回群里｜何时用：这个月的事件已冻结进 stable/ 之后（增量更新的每一轮末尾，或定时任务每月初）｜输入：`{{project}}/work/stable/{{months}}.json`（本月事件）、`{{project}}/work/digest/{{months}}-stats.md`（本月统计，`{{run_incremental}} --stats {{months}}` 生成）｜输出：`{{project}}/out/digest/{{months}}.md`
 
 # 本月群报（{{months}}）
 

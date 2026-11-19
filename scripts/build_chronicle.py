@@ -6,7 +6,10 @@
 原文片段：默认一条都不展示，只展示事件；config.pages.show_chat_groups 列出的群（key 或 label 都行）
 才会在事件卡片上出现「翻当时的聊天」。
 年度十大：work/top10.json 形如 {"2020": [{"id": "E:2020-05-3", "reason": "入选理由"}]}，
-id 是「E:月份-该月 stable 文件里的序号」（同修订清单的 key）；没有这个文件就按热度自动挑。
+id 是「E:月份-该月 stable 文件里的序号」（同修订清单的 key）；没有这个文件就按热度、引用条数自动挑，
+并把每年前 20 件候选写到 work/top10.auto.json（同格式），人工挑好存成 top10.json 再构建即可。
+页面：每年开头显示年度十大；每月默认只摊开热度 2–3 的事件，热度 1 的日常折叠成「展开本月 N 件日常」。
+构建前另跑一遍代词与性别的机检（check_events 的同一规则），有疑似写错的只打印提醒。
 """
 import collections
 import json
@@ -14,6 +17,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from check_events import gender_names, gender_warnings
 from privacy_gate import enforce
 from pagekit import (TEMPLATES, author_title, cn_year, esc, fill, font_css, load_project, pages,
                      plain_text, site_name, tabs_html, title_spans)
@@ -62,6 +66,7 @@ def excerpt(refs):
 
 
 months, all_events, bad = [], {}, 0
+gnames, gwarn = gender_names(cfg), []
 for f in sorted((W / 'stable').glob('*.json')):
     mo = json.load(open(f))
     evs = []
@@ -74,14 +79,21 @@ for f in sorted((W / 'stable').glob('*.json')):
               'heat': int(e.get('heat', 1)), 'ex': ex,
               'lock': hidden_note if show and refs and not ex else ''}
         all_events[ev['id']] = (ev, len(refs))
+        gwarn += [f'E:{ev["id"]} {w}' for w in gender_warnings(cfg, e, gnames)]
         evs.append(ev)
     evs.sort(key=lambda e: e['date'])
     months.append({'month': mo['month'], 'summary': mo.get('month_summary', ''),
                    'count': month_count.get(mo['month'], 0), 'events': evs})
 if not months:
     sys.exit(f'{W / "stable"} 里没有月份文件')
+if gwarn:
+    print(f'提醒：{len(gwarn)} 处代词可能与 config.gender 不符（启发式，确认后用 apply_fixes 修；指的是别人就忽略）：')
+    for w in gwarn[:20]:
+        print('  -', w)
+    if len(gwarn) > 20:
+        print(f'  …另 {len(gwarn) - 20} 处（check_events.py --dir stable 看全部）')
 
-# ---------- 年度十大 + 三张榜（只有登录版网站显示；单文件版不展示） ----------
+# ---------- 年度十大（单文件版与登录版都显示）+ 三张榜（只有登录版网站显示：夜猫子榜会暴露作息） ----------
 # 第一年不足 3 个月时并进下一年
 years = sorted({m['t'][:4] for m in allm})
 first_months = sorted({m['t'][:7] for m in allm if m['t'][:4] == years[0]})
@@ -103,7 +115,10 @@ else:  # 自动：热度高的优先，同热度按引用条数
     by_year = collections.defaultdict(list)
     for eid, (ev, nref) in all_events.items():
         by_year[year_of(ev['date'])].append((-ev['heat'], -nref, ev['date'], eid))
-    picks = {y: [{'id': r[3], 'reason': all_events[r[3]][0]['summary']} for r in sorted(rows)[:10]] for y, rows in by_year.items()}
+    cands = {y: [{'id': 'E:' + r[3], 'reason': all_events[r[3]][0]['summary']} for r in sorted(rows)[:20]] for y, rows in by_year.items()}
+    (W / 'top10.auto.json').write_text(json.dumps(cands, ensure_ascii=False, indent=1), encoding='utf-8')
+    picks = {y: [{'id': p['id'][2:], 'reason': p['reason']} for p in rows[:10]] for y, rows in cands.items()}
+    print(f'年度十大按热度自动挑；每年前 20 件候选在 {W / "top10.auto.json"}，挑好 10 件存成 work/top10.json 再构建可改用人工版')
 top = {}
 for year in sorted(picks):
     rows = []

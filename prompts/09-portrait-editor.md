@@ -1,4 +1,4 @@
-> 用途：人物小传上线前的总编终审（多篇横向看；只有一两篇时走「单篇模式」）｜何时用：小传（08）写完、build 之前，一个子任务审全部｜输入：`{{project}}/out/portraits/*.md`、`08-portrait-write.md`（写法与禁区）、证据卡与原文（核对用）；若有：`work/review/<人>-citations.md`（verify_citations 的引语出处表：问题清单 + 每条引语的说话人、时间与前后语境；缺的先跑 `python3 {{skill}}/scripts/verify_citations.py --project {{project}} --person <人> --md out/portraits/<人>.md`）、`work/attr/<人>.md`（旧稿没有出处标注时，quote_attr 的引语归属与语境）｜输出：报告 `{{project}}/work/review/portraits-editor.md`；小改直接改原文件（改前备份到 `{{project}}/out/portraits.bak/`）
+> 用途：人物小传上线前的总编终审（多篇横向看；只有一两篇时走「单篇模式」）｜何时用：小传（08）写完、build 之前，一个子任务审全部｜输入：`{{project}}/out/portraits/*.md`、`08-portrait-write.md`（写法与禁区）、证据卡与原文（核对用）；若有：`work/review/<人>-citations.md`（verify_citations 的引语出处表：问题清单 + 每条引语的说话人、时间与前后语境；缺的先跑 `{{run_verify_citations}} --person <人> --md out/portraits/<人>.md`）、`work/attr/<人>.md`（旧稿没有出处标注时，quote_attr 的引语归属与语境）｜输出：报告 `{{project}}/work/review/portraits-editor.md`；小改直接改原文件（改前备份到 `{{project}}/out/portraits.bak/`）
 
 # 总编终审
 

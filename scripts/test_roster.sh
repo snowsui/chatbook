@@ -223,6 +223,25 @@ cmp -s <($PY -c "import json,sys;print(json.load(open(sys.argv[1]))['aliases'])"
        <($PY -c "import json,sys;print(json.load(open(sys.argv[1]))['aliases'])" "$M2/chronicle.config.json") || fail "按称呼合并应与按编号合并结果相同"
 ok "按称呼合并重名两人（小雨=小雨（2））与按编号结果相同"
 
+echo "6c. --rename 一个参数写多对；格式不对报错且不写 config"
+R="$T/rename"; cp -r "$P" "$R"
+$PY "$HERE/roster.py" --project "$R" build >/dev/null
+$PY "$HERE/roster.py" --project "$R" apply --rename "$(N 光哥)=光光,$(N 小鹿)=鹿姐" --rename "熊老大=熊熊" >/dev/null || fail "--rename 多对应能写"
+$PY -c "
+import json,sys; c=json.load(open(sys.argv[1]))
+m=c['members']; assert '光光' in m and '鹿姐' in m and '熊熊' in m, m
+assert not [x for x in m if ',' in x or '=' in x], m
+assert c['aliases'].get('光哥') == '光光' and c['aliases'].get('小鹿') == '鹿姐', c['aliases']" "$R/chronicle.config.json" || fail "多对改名没生效"
+cp "$R/chronicle.config.json" "$T/r0.json"
+for bad in "$(N 木木)=阿木,二木" "$(N 木木)=阿=木" "$(N 木木)=" "$(N 木木)"; do
+  if $PY "$HERE/roster.py" --project "$R" apply --rename "$bad" >"$T/err.txt" 2>&1; then fail "--rename $bad 应报错"; fi
+  grep -q -- '--rename' "$T/err.txt" && ! grep -q Traceback "$T/err.txt" || fail "--rename $bad 报错不友好"
+  cmp -s "$R/chronicle.config.json" "$T/r0.json" || fail "--rename $bad 报错时不该写 config"
+done
+if $PY "$HERE/roster.py" --project "$R" apply --merge "1=2,3=4" >"$T/err.txt" 2>&1; then fail "--merge 多组没用分号应报错"; fi
+grep -q '分号' "$T/err.txt" && cmp -s "$R/chronicle.config.json" "$T/r0.json" || fail "--merge 多组报错应提示分号且不写 config"
+ok "--rename 1=甲,2=乙 一次改多人；含逗号/等号/空称呼报错、config 不变；--merge 多组提示用分号"
+
 echo "7. 编号范围；两人私聊不误标机器人"
 $PY "$HERE/roster.py" --project "$P" apply --members "$(N 大熊)-$(N 大熊)" >/dev/null || fail "范围写法 a-b"
 Q="$T/pair"; mkdir -p "$Q"

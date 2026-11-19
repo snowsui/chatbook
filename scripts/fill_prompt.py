@@ -20,6 +20,9 @@
   {{public_detail}} standard/full（config.public_detail，缺省 standard：公开事件不写具体金额/住址/证件/诊断细节）
   {{sensitive_words}} {{real_names}} 本群敏感词 / 真名（列表；任何模式下都不写进公开产出）
   {{scale_rules}} 规模规则：按 config.scale（pair / large）填 references/12 的门槛段，group（缺省）为空
+  {{run_<脚本>}} 调本 skill 脚本的完整命令前缀：python3 <skill 绝对路径>/scripts/<脚本>.py --project <项目绝对路径>（shlex 引号）
+  {{check_cmd}} 子任务交稿前自检事件的完整命令（check_events.py，与 pipeline check 阶段同一口径，只查分给它的分段/月份）：
+    01 → --dir events part_events --only <分段>；00 → --dir cards --only <分段>；02 → --dir events --only <月份>
 任务占位来自参数：{{person}} --person、{{chunk_files}} --files、{{months}} --months、{{story_id}} --story-id、
   {{story_brief}} --story-brief（文本，或文件路径则读文件内容）、{{round}} --round；其他任意占位用 --set 键=值。
 填完还有没填的 {{占位}} 就报错退出，并提示该补哪个参数。
@@ -28,6 +31,7 @@
 """
 import json
 import re
+import shlex
 import sys
 from pathlib import Path
 
@@ -56,7 +60,8 @@ SCALE_RULES = {
     },
 }
 HINT = {'person': '--person', 'chunk_files': '--files', 'months': '--months', 'story_id': '--story-id',
-        'story_brief': '--story-brief', 'round': '--round'}
+        'story_brief': '--story-brief', 'round': '--round', 'check_cmd': '--files 或 --months'}
+SCRIPTS = Path(__file__).resolve().parent
 
 
 def extra(p):
@@ -167,12 +172,25 @@ def main():
         v['story_brief'] = bp.read_text(encoding='utf-8').strip() if bp.is_file() else a.story_brief
     if a.round:
         v['round'] = a.round
+    q = shlex.quote
+    run = lambda name: f'python3 {q(str(SCRIPTS / (name + ".py")))} --project {q(str(a.project))}'  # noqa: E731
+    if a.files or a.months:
+        only = [Path(f).stem for f in a.files] if a.files else list(a.months)
+        dirs = {'00': 'cards', '02': 'events'}.get(no, 'events part_events')
+        v['check_cmd'] = f'{run("check_events")} --dir {dirs} --only {" ".join(q(x) for x in only)}'
     for kv in a.set:
         if '=' not in kv:
             sys.exit(f'--set 要写成 键=值：{kv!r}')
         k, val = kv.split('=', 1)
         v[k.strip()] = val
-    out = re.sub(r'\{\{(\w+)\}\}', lambda m: v.get(m.group(1), m.group(0)), tpl)
+    def sub(m):
+        k = m.group(1)
+        if k in v:
+            return v[k]
+        if k.startswith('run_') and (SCRIPTS / (k[4:] + '.py')).is_file():
+            return run(k[4:])
+        return m.group(0)
+    out = re.sub(r'\{\{(\w+)\}\}', sub, tpl)
     if a.from_line:
         out += from_line_note(a, no, en)
     left = sorted(set(re.findall(r'\{\{(\w+)\}\}', out)))

@@ -4,6 +4,7 @@
   python3 scripts/roster.py --project <dir> build [--min-msgs 30] [--top 60]
   python3 scripts/roster.py --project <dir> apply --core 1,2,5 [--members 3,4 | --members auto]
         [--merge 3=7,8] [--split 9] [--rename 2=大爷] [--me 4] [--drop 11]   （--merge/--split/--rename 可写多次）
+  多人改名：--rename 1=芳姐,2=小周（逗号/顿号分隔多对）；多组合并：--merge "3=7,8;4=9"（合并里逗号分隔成员，组与组之间用分号）。
   编号可以写 1,2,5、1-3、1、2、5、"1 2 5"，也可以直接写 roster.md 里的称呼（--core 小鹿,大熊）。
 
 build → work/roster.json（机器读）+ work/roster.md（给用户看的编号表 + “可能同一人”建议）。
@@ -53,9 +54,9 @@ def extra(p):
     p.add_argument('--top', type=int, default=60, help='roster.md 最多列几人（核心/成员/作者本人总会列出），默认 60')
     p.add_argument('--core', default=None, help='核心人物编号，逗号分隔')
     p.add_argument('--members', default=None, help='成员编号（逗号分隔）或 auto')
-    p.add_argument('--merge', action='append', default=[], help='3=7,8：把 7、8 并进 3')
+    p.add_argument('--merge', action='append', default=[], help='3=7,8：把 7、8 并进 3；多组用分号 "3=7,8;4=9" 或写多次')
     p.add_argument('--split', action='append', default=[], help='把某编号拆回各个账号')
-    p.add_argument('--rename', action='append', default=[], help='2=新称呼')
+    p.add_argument('--rename', action='append', default=[], help='2=新称呼；多人 1=芳姐,2=小周 或写多次')
     p.add_argument('--me', default=None, help='作者本人的编号')
     p.add_argument('--drop', default=None, help='排除的编号，逗号分隔')
 
@@ -522,13 +523,32 @@ def write(D, ents, suggestions, conflicts, numbering, top):
           f'例如（编号仅示意）：「核心 {",".join(map(str, core_sug)) or "1,2,3"}；合并 3=7；5 叫大爷；我是 4；去掉 11」。'
           '没说成员就按推荐（核心 + 推荐为成员的人 + 作者本人）。我会换成：', '',
           '```', f'python3 <skill>/scripts/roster.py --project <dir> apply --core {",".join(map(str, core_sug)) or "1,2,3"} '
-          '[--members auto|3,4] [--merge 3=7] [--rename 5=大爷] [--me 4] [--drop 11] [--split 9]', '```', '',
+          '[--members auto|3,4] [--merge "3=7;4=9"] [--rename 5=大爷,6=二哥] [--me 4] [--drop 11] [--split 9]', '```', '',
           '外号、性别、关系不从名字推断，接下来单独问。']
     (a.work / 'roster.md').write_text('\n'.join(L) + '\n', encoding='utf-8')
     return out
 
 
 # ---------------- apply ----------------
+def rename_pairs(specs):
+    """--rename 的值 → [(编号或称呼, 新称呼)]。一个值里可用逗号/顿号/分号分隔多对（1=芳姐,2=小周），也可写多次。
+    格式不对（某段没有 =、有两个 =、新称呼为空）直接报错退出，不写 config。"""
+    out = []
+    for spec in specs:
+        for one in re.split(r'[,，、;；]', spec):
+            one = one.strip()
+            if not one:
+                continue
+            if one.count('=') != 1:
+                sys.exit(f'--rename 写成 2=新称呼，多人用逗号隔开（1=芳姐,2=小周）或写多次 --rename；'
+                         f'新称呼里不能有逗号、顿号、分号、等号：{spec!r}')
+            no, new = (x.strip() for x in one.split('=', 1))
+            if not no or not new:
+                sys.exit(f'--rename 等号两边都不能为空：{spec!r}')
+            out.append((no, new))
+    return out
+
+
 def apply(D, a):
     base = D.default_partition()
     ents, _, _ = describe(D, base, min_msgs=a.min_msgs)
@@ -554,8 +574,8 @@ def apply(D, a):
         for one in re.split(r'[;；]', spec):
             if not one.strip():
                 continue
-            if '=' not in one:
-                sys.exit(f'--merge 写成 3=7,8：{one}')
+            if one.count('=') != 1:
+                sys.exit(f'--merge 写成 3=7,8，多组用分号隔开（3=7,8;4=9）或写多次 --merge：{one}')
             t, srcs = one.split('=', 1)
             gt = part_of(part, ents, R(single(t, '--merge 等号左边')))
             for s in nums(srcs):
@@ -582,13 +602,7 @@ def apply(D, a):
                 split_names[newg] = ents[g]['hlast'][h][1] if h in ents[g]['hlast'] else h[2:]
                 touched.add(newg)
                 newg += 1
-    for spec in a.rename:
-        if '=' not in spec:
-            sys.exit(f'--rename 写成 2=新称呼：{spec}')
-        no, new = spec.split('=', 1)
-        new = new.strip()
-        if not new:
-            sys.exit(f'--rename 新称呼为空：{spec}')
+    for no, new in rename_pairs(a.rename):
         renames[part_of(part, ents, R(single(no, '--rename 等号左边')))] = new
     # 新分组方案下的人
     after, _, _ = describe(D, part, renames={**split_names, **renames}, min_msgs=a.min_msgs)

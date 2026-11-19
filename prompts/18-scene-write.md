@@ -1,4 +1,4 @@
-> 用途：按「场景节拍表」把一段群聊戏写出来（人物模型的创作用法）｜何时用：人物模型定稿（14）之后，或做“像不像”盲测（19）时；一段戏一个子任务（强模型）｜输入：`{{project}}/work/scenes/beats-{{tag}}.md`（`scripts/scene_sampler.py` 产出）、出场人的 `out/personas/<人>.md`、`out/personas/00-群像总览.md`（若有）｜输出：`{{project}}/work/scenes/scene-{{tag}}.md`（只放聊天）、`{{project}}/work/scenes/scene-{{tag}}-notes.md`（偏离说明）
+> 用途：按「场景节拍表」把一段群聊戏写出来（人物模型的创作用法）｜何时用：人物模型定稿（14）之后，或做“像不像”盲测（19）时；一段戏一个子任务（强模型）｜输入：`{{project}}/work/scenes/beats-{{tag}}.md`（`{{skill}}/scripts/scene_sampler.py` 产出）、出场人的 `out/personas/<人>.md`、`out/personas/00-群像总览.md`（若有）｜输出：`{{project}}/work/scenes/scene-{{tag}}.md`（只放聊天）、`{{project}}/work/scenes/scene-{{tag}}-notes.md`（偏离说明）
 
 # 群聊戏写作（按节拍表）
 

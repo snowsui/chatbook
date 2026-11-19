@@ -15,7 +15,9 @@
     chunks/                 # 分段文本（增量尾部为 <月>_tail_p<i>.txt）
     cards/<分段>.json        # 统一阅读（prompts/00）的产物：事件 + 人物证据；<分段>-b.json 是补读剩余行的卡片
     part_events/ events/ stable/   # 抽取 → 合并 → 冻结（part_events/merged/ 为已并入的增量尾部）
-    check.txt               # check_events 的机检输出（pipeline 判 0 警告）
+    check.txt               # check_events 的机检输出（pipeline 判“未处理 0 条”）
+    check_allow.json        # check_events --allow 标记的“已看过、合理”的警告：[{event: 第一条 ref 的稳定键, rule, note}]
+    top10.auto.json         # build_chronicle 按热度自动挑的年度十大候选（每年前 20 件；人工挑好存成 top10.json）
     people/<人>/evidence.md # collect_evidence 汇总的证据（每条带稳定键 k）
     people/<人>/chunks/ cards/     # 逐人切块；cards/ 只在专人深读（config.deep_read，prompts/07）时有
     stats/ metrics.md turnmix.md turns/   # 统计

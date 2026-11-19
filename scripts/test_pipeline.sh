@@ -18,12 +18,35 @@ run "$HERE/split_chunks.py" --project "$P" >/dev/null
 run "$HERE/pipeline.py" --project "$P" status | tee "$P/st.txt"
 grep -q '| read | 子任务 | cheap | split | 6 | 0 | 0 | 0 | todo |' "$P/st.txt"
 grep -q '| personas' "$P/st.txt" && { echo 'standard 档不应有 personas'; exit 1; }
-run "$HERE/pipeline.py" --project "$P" next --limit 2 | tee "$P/next.txt"
-[ "$(grep -c '^## read:' "$P/next.txt")" = 2 ]                   # 并发上限 2
+# 默认把相邻短分段合成一批（--batch-lines 1000）：6 个小分段合成一个子任务，fill_prompt 一条命令带多个 --files
+run "$HERE/pipeline.py" --project "$P" next --peek | tee "$P/batch.txt"
+[ "$(grep -c '^## read:' "$P/batch.txt")" = 1 ] || { echo '短分段应合成一批'; exit 1; }
+grep -q '6 段合一批' "$P/batch.txt"
+grep -q -- "--prompt 00 --files 2015-09_p1.txt 2019-03_p1.txt" "$P/batch.txt"
+grep -q "work/prompts/read-2015-09_p1--" "$P/batch.txt"
+grep -q '先用 Read 读完全文' "$P/batch.txt"
+eval "$(grep -m1 'fill_prompt.py' "$P/batch.txt" | sed 's/^ *//; s/^python3 /python3 -I /')"
+B="$(ls "$P"/work/prompts/read-2015-09_p1--*.md)"
+no '{{' "$B"
+grep -q "$HERE/check_events.py" "$B" || { echo '自检命令应是 check_events.py 的绝对路径'; exit 1; }
+grep -q -- '--dir cards --only 2015-09_p1 2019-03_p1' "$B"
+if grep -nE '(^|[^/A-Za-z0-9_])scripts/[A-Za-z0-9_]+\.py' "$B"; then echo '说明里不应有裸的 scripts/xxx.py'; exit 1; fi
+rm "$B"
+# 所有模板：调脚本一律走 {{run_<脚本>}} / {{check_cmd}}（填出来是绝对路径），不留裸的 scripts/xxx.py
+if grep -nE '(^|[^}/A-Za-z0-9_])scripts/[A-Za-z0-9_]+\.py' "$HERE"/../prompts/*.md "$HERE"/../prompts/en/*.md; then echo '模板里有裸的 scripts/xxx.py'; exit 1; fi
+for args in "--prompt 01 --files 2019-03_p1.txt" "--prompt 02 --months 2019-03" "--prompt 01 --lang en --files 2019-03_p1.txt" "--prompt 09"; do
+  # shellcheck disable=SC2086
+  $PY "$HERE/fill_prompt.py" --project "$P" $args --out "$P/f.md" 2>/dev/null
+  if grep -nE '(^|[^/A-Za-z0-9_])scripts/[A-Za-z0-9_]+\.py' "$P/f.md"; then echo "$args：说明里有裸的 scripts/xxx.py"; exit 1; fi
+done
+$PY "$HERE/fill_prompt.py" --project "$P" --prompt 02 --months 2019-03 | grep -q -- "check_events.py --project .* --dir events --only 2019-03" || { echo '02 自检命令不对'; exit 1; }
+grep -q "verify_citations.py --project" "$P/f.md" || { echo '09 里的 verify_citations 应是完整命令'; exit 1; }
+run "$HERE/pipeline.py" --project "$P" next --limit 2 --batch-lines 0 | tee "$P/next.txt"
+[ "$(grep -c '^## read:' "$P/next.txt")" = 2 ]                   # 并发上限 2（--batch-lines 0：一段一个任务）
 grep -q '^## person-stats  \[脚本' "$P/next.txt"                  # 脚本阶段不占名额
 grep -q '子任务 · 便宜模型（Claude Code 子任务选 sonnet 或 haiku）' "$P/next.txt"
 grep -q -- "--prompt 00 --files 2015-09_p1.txt --set 'people=阿然、老周'" "$P/next.txt"
-run "$HERE/pipeline.py" --project "$P" next --limit 2 | tee "$P/next2.txt"
+run "$HERE/pipeline.py" --project "$P" next --limit 2 --batch-lines 0 | tee "$P/next2.txt"
 grep -q '没有可派' "$P/next2.txt" || grep -q '^## person-stats' "$P/next2.txt"   # 两个 read 在 doing，名额已满
 no '^## read:' "$P/next2.txt"
 # next 给出的 fill_prompt 命令能直接跑通（没有漏填的占位）

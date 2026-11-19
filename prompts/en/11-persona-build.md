@@ -53,7 +53,7 @@ In past projects the first-draft models scored 6–7/10 on accuracy in independe
 {{taboo_extra}}
 4. **Counterexamples go in.** After every [high] claim, add one "exception / counterexample" (a time in the record they did the opposite). People are inconsistent.
 5. **Quotes.** Every quote must be the person's own words (or explicitly marked "X said to them"), correctly dated, verbatim (trimming allowed). **Put a source tag right after every quote** (keep the tags in the model file; reviewers and revisers check against them): their own words `"quote"<!--k:A:7000123-->`; several consecutive messages `<!--k:A:1,A:2-->`; someone else's words `<!--k:A:7000130@speaker-->`; quotation marks around something that is not a real quote (nickname, name of a running joke) `<!--k:none-->`. The tag goes right after the closing quotation mark.
-   When done, run `python3 "{{skill}}/scripts/verify_citations.py" --project "{{project}}" --person "{{person}}" --md "out/personas/{{person}}.md" --strict` and clear every "problem" and "untagged" item.
+   When done, run `{{run_verify_citations}} --person "{{person}}" --md "out/personas/{{person}}.md" --strict` and clear every "problem" and "untagged" item.
 6. **No single rules.** Replace absolute "by default / usually / mostly they …" statements with proportional mixes (consistent with 0.6). Avoid stock answers like "teases first, helps later" or "tough on the outside, soft inside" — such lines are likely the whole group's common idiom (see "group-wide traits" in the overview), not this person's trait.
 7. **No diagnosis.** No psychological or medical diagnoses, no condition names.
 8. **No invention.** Mark inferences as "inferred".

@@ -85,12 +85,14 @@ Write one valid JSON file per chunk (no comments):
   | 名场面 | legendary moment / running joke |
 
 - `heat`: 3 = the whole group went wild / a major life event, 2 = several people got into it, 1 = worth a line
-- Length limits in English mode (what `scripts/check_events.py` enforces when `config.lang` is `"en"`): `title` ≤ 48 characters, `summary` ≤ 240 characters (about 40 words), `month_summary` ≤ 90 characters. Over the limit gets flagged.
+- Length limits in English mode (what `check_events.py` enforces when `config.lang` is `"en"`): `title` ≤ 48 characters, `summary` ≤ 240 characters (about 40 words), `month_summary` ≤ 90 characters. Over the limit gets flagged.
 - `refs`: the 2–6 message IDs that best represent the event. They **must exist in this file**, listed in time order.
 - `date`: **equals the date of the earliest message in refs** (not earlier, not later).
 - `people`: display names as used in the chat; the author is written as `{{me}}`.
 - `groups`: which group(s) the event happened in.
 - For what counts as one event, see "What counts as one event" above. Events that obviously cross chunk boundaries are written as usual; the merge step deduplicates them.
-- After you finish, the coordinator runs `scripts/check_events.py` (refs count and existence, date, lengths, people). Anything that fails comes back to you.
+- **Self-check before you report** (the same script and rules as the coordinator's check stage; do not write your own checker):
+  `{{check_cmd}}`
+  It checks refs count and existence, date, lengths, people, refs span and pronouns vs. gender. Fix until it says 0 unresolved warnings. If you believe a warning is a legitimate exception (e.g. a span with only one message at each end), do not force a split; name the event and the reason in your reply and the coordinator decides.
 
 When done, report one line per file: `<file name>: N events (M lines, read to end)`, where M is the total number of lines in the file. If you did not finish: `<file name>: N events (read to line X of M)`. Separate files with semicolons.

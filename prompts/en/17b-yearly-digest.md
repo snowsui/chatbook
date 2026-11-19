@@ -1,8 +1,8 @@
-> Purpose: write the group's "Year in review" (500–900 words), to post around New Year | When: after the year's months (or all months so far) are frozen into stable/ | Input: `{{project}}/work/stable/{{months}}-*.json` (the year's events), `{{project}}/work/digest/{{months}}-stats.md` (yearly counts, made by `incremental.py --stats {{months}}`), `{{project}}/out/digest/{{months}}-*.md` (monthly digests, if present), `{{project}}/work/top10.json` (top ten of the year, if present) | Output: `{{project}}/out/digest/{{months}}.md`
+> Purpose: write the group's "Year in review" (500–900 words), to post around New Year | When: after the year's months (or all months so far) are frozen into stable/ | Input: `{{project}}/work/stable/{{months}}-*.json` (the year's events), `{{project}}/work/digest/{{months}}-stats.md` (yearly counts, made by `{{run_incremental}} --stats {{months}}`), `{{project}}/out/digest/{{months}}-*.md` (monthly digests, if present), `{{project}}/work/top10.json` (top ten of the year, if present) | Output: `{{project}}/out/digest/{{months}}.md`
 
 # Year in review ({{months}})
 
-Here `{{months}}` is a year (generate this with `fill_prompt.py --prompt 17b --months 2024`).
+Here `{{months}}` is a year (generate this with `{{run_fill_prompt}} --prompt 17b --months 2024`).
 
 You are writing the group's year in review: the friend who stands up at the end-of-year dinner and walks everyone through the year — funny, with one or two moments that make the room go quiet, but not a eulogy and not an annual report.
 
