@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>%%TITLE%%</title>
+<style>
+:root{--paper:#f2e9d6;--paper-hi:#faf5ea;--ink:#1c1915;--ink-3:#8a8172;--rule:#d8cbb0;--zhu:#b5321d;
+--serif:"Songti SC","STSong","Noto Serif SC","Source Han Serif SC",serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;min-height:100svh;display:grid;place-items:center;background:var(--paper);color:var(--ink);font:400 16px/1.8 var(--serif);padding:24px 16px}
+form{width:100%;max-width:360px;text-align:center}
+.seal{display:inline-grid;place-items:center;width:64px;height:64px;background:var(--zhu);color:var(--paper-hi);font:700 22px/1 var(--serif);border-radius:6px;transform:rotate(-4deg);margin-bottom:22px;writing-mode:vertical-rl}
+h1{font:700 20px/1.5 var(--serif);letter-spacing:.2em;margin-bottom:8px}
+p{color:var(--ink-3);font-size:14px;margin-bottom:22px}
+input{width:100%;font:400 17px/1.4 var(--serif);padding:12px 14px;border:1.5px solid var(--rule);border-radius:8px;background:var(--paper-hi);color:var(--ink);outline:none}
+input:focus{border-color:var(--zhu)}
+button{width:100%;margin-top:12px;font:700 16px/1 var(--serif);letter-spacing:.3em;padding:14px;border:0;border-radius:8px;background:var(--ink);color:var(--paper-hi);cursor:pointer}
+button[disabled]{opacity:.5}
+#msg{min-height:1.8em;margin:14px 0 0;color:var(--zhu)}
+</style>
+</head>
+<body>
+<form id="f" autocomplete="off">
+<div class="seal">口令</div>
+<h1>%%TITLE%%</h1>
+<p>%%HINT%%</p>
+<input id="pw" type="password" placeholder="输入口令" aria-label="口令" autofocus>
+<button id="go" type="submit">打开</button>
+<p id="msg" role="alert"></p>
+</form>
+<script type="application/json" id="blob">%%DATA%%</script>
+<script>
+(function(){
+var f=document.getElementById('f'),pw=document.getElementById('pw'),go=document.getElementById('go'),msg=document.getElementById('msg');
+var d=JSON.parse(document.getElementById('blob').textContent);
+function bytes(s){var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
+if(!(window.crypto&&crypto.subtle)){msg.textContent='这个浏览器打不开口令页：请用 https 地址打开，或把文件下载后用 Chrome / Safari 打开（http 和部分 App 内置浏览器不支持）';go.disabled=true;return}
+f.addEventListener('submit',function(e){
+  e.preventDefault();if(!pw.value)return;
+  go.disabled=true;msg.textContent='打开中…';
+  var enc=new TextEncoder();
+  crypto.subtle.importKey('raw',enc.encode(pw.value.normalize('NFC')),'PBKDF2',false,['deriveKey']).then(function(base){
+    return crypto.subtle.deriveKey({name:'PBKDF2',salt:bytes(d.salt),iterations:d.it,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['decrypt']);
+  }).then(function(key){
+    return crypto.subtle.decrypt({name:'AES-GCM',iv:bytes(d.iv)},key,bytes(d.ct));
+  }).then(function(buf){
+    var html=new TextDecoder().decode(buf);
+    document.open();document.write(html);document.close();
+  },function(){
+    msg.textContent='口令不对';go.disabled=false;pw.select();
+  });
+});
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+# 由 package_site.py 第一次运行时复制到 <项目>/site/wrangler.toml，之后不会覆盖，可以随便改。
+name = "__WORKER_NAME__"
+main = "src/index.js"
+compatibility_date = "2026-07-01"
+
+# 默认先用 workers.dev 子域（同样要登录才能看）。绑自定义域名时：
+#   1) 把 workers_dev 改成 false；2) 取消下面 routes 的注释并改成你的子域（域名须已托管在同一个 Cloudflare 账号）
+workers_dev = true
+# routes = [
+#   { pattern = "chronicle.example.com", custom_domain = true }
+# ]
+
+[vars]
+SITE_NAME = "__SITE_NAME__"
+SITE_TITLE = "__SITE_TITLE__"
+
+# wrangler deploy / wrangler dev 前自动重新打包 out/ 下的四个页面（大事记/小剧场/人物志/数据，有哪个打包哪个）
+# 下面 command 里的脚本路径由 package_site.py 填成已加引号的绝对路径（路径含空格/中文也能用）
+[build]
+command = "python3 __PACKAGE_SCRIPT__ --project .."
+watch_dir = ["./src", "../out/chronicle.html", "../out/stories.html", "../out/people.html", "../out/stats.html"]
+
+# 所有请求先过 Worker 鉴权，静态文件不能绕过登录直接访问
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true

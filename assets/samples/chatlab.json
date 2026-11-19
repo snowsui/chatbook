@@ -1,0 +1,18 @@
+{
+  "chatlab": {"version": "0.0.1", "exportedAt": 1700000000, "generator": "sample"},
+  "meta": {"name": "周末小分队", "platform": "qq", "type": "group", "groupId": "g_demo", "ownerId": "u_aran"},
+  "members": [
+    {"platformId": "u_aran", "accountName": "阿然"},
+    {"platformId": "u_qinghe", "accountName": "青禾", "groupNickname": "青禾"},
+    {"platformId": "u_mili", "accountName": "米粒"}
+  ],
+  "messages": [
+    {"sender": "u_mili", "accountName": "米粒", "timestamp": 1577872800, "type": 0, "content": "新年快乐！今年一起去趟海边吧", "platformMessageId": "m1"},
+    {"sender": "u_aran", "accountName": "阿然", "timestamp": 1577872860, "type": 25, "content": "好呀好呀", "platformMessageId": "m2", "replyToMessageId": "m1"},
+    {"sender": "u_qinghe", "accountName": "青禾", "timestamp": 1577872900, "type": 1, "content": "", "platformMessageId": "m3"},
+    {"sender": "u_qinghe", "accountName": "青禾", "timestamp": 1577872920, "type": 81, "content": "撤回了一条消息", "platformMessageId": "m4"},
+    {"sender": "u_qinghe", "accountName": "青禾", "timestamp": 1577872950, "type": 7, "content": "海边民宿推荐", "platformMessageId": "m5"},
+    {"sender": "system", "accountName": "系统", "timestamp": 1577873000, "type": 80, "content": "米粒 邀请 老周 加入了群聊", "platformMessageId": "m6"},
+    {"sender": "u_mili", "accountName": "米粒", "timestamp": 1577873100, "type": 20, "content": "恭喜发财", "platformMessageId": "m7"}
+  ]
+}

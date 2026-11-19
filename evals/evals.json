@@ -1,0 +1,79 @@
+{
+  "skill_name": "group-chat-chronicle",
+  "notes": "语料与真值在 evals/corpus/<名>/；先跑 build_corpus.py 生成 exports/。每个测试把 files 复制进一个空项目目录再发 prompt。assertions 由 `python3 evals/score.py --project <项目> --truth <truth> --evals evals/evals.json --eval-id <id>` 机检；expectations 是给人工/grader 看的。阈值来自首轮实测与经验（见 references/10-evaluation.md），改 skill 后按需调整。",
+  "evals": [
+    {
+      "id": 1,
+      "name": "roommates-chronicle-lite",
+      "truth": "evals/corpus/roommates/truth",
+      "prompt": "我导出了大学寝室群“520养老院”的聊天记录（exports/roommates.json，ChatLab 格式，2023-09 到 2025-08）。帮我做一个大事记网页就行，别的都不要，不用上线。我是老赵（寝室长）。六个人：老赵、芳姐、胖虎、阿哲、大刘、小周，全是男生——芳姐也是男的，外号是因为名字里有个芳。群昵称改过：李芳洲/芳姐在上海搬砖=芳姐，瘦虎=胖虎，Zhe=阿哲，刘子健=大刘，一鸣惊人/煤球他爹=小周，赵屹是我。只给我们六个看，没有家属。别写进去的：大刘谈恋爱和分手的事（包括女生名字）、谁的工资 offer 金额和借钱、谁的体检看病吃药和家里人生病、住址手机号身份证、芳姐公司叫什么。",
+      "expected_output": "out/chronicle.html：按月时间线，覆盖两年里的大事（保研、offer、考研、毕业、出国、入职、上岸、聚会、群梗），人物性别与改名归一正确，公开页里没有任何禁区内容。",
+      "files": ["evals/corpus/roommates/exports/roommates.json"],
+      "expectations": [
+        "按 SKILL.md 先写 chronicle.config.json（members 六人、gender 全男、aliases 覆盖所有改名、taboo_extra 写入用户给的禁区）",
+        "事件抽取逐行读完全部分段，check_events 无实质警告后再 freeze",
+        "大事记页里芳姐用“他”，没有被写成女生",
+        "大事记页不出现分手、工资、体检、住址、手机号、公司名等禁区内容"
+      ],
+      "assertions": [
+        {"file": "out/chronicle.html"},
+        {"metric": "events.recall", "op": ">=", "value": 0.75},
+        {"metric": "events.html_recall", "op": ">=", "value": 0.6},
+        {"metric": "events.extra_heat2", "op": "<=", "value": 15},
+        {"metric": "events.refs_valid", "op": ">=", "value": 0.98},
+        {"metric": "privacy.public_hits", "op": "==", "value": 0}
+      ]
+    },
+    {
+      "id": 2,
+      "name": "roommates-chronicle-plus-two-portraits",
+      "truth": "evals/corpus/roommates/truth",
+      "prompt": "还是这个寝室群（exports/roommates.json，信息同上：我是老赵，六个男生，芳姐是男的，改名对照：李芳洲/芳姐在上海搬砖=芳姐，瘦虎=胖虎，Zhe=阿哲，刘子健=大刘，一鸣惊人/煤球他爹=小周，赵屹=我）。除了大事记，再给芳姐和胖虎各写一篇人物小传，要真的读完聊天记录写，别瞎编，引的话必须是他们自己说的。禁区同上：大刘的恋爱分手、工资金额借钱、体检看病和家人生病、住址手机号身份证、芳姐公司名。",
+      "expected_output": "out/chronicle.html 与 out/portraits/芳姐.md、out/portraits/胖虎.md（及 people.html）：小传先写日常再写高光，引语都是本人说的，性别正确，不碰禁区。",
+      "files": ["evals/corpus/roommates/exports/roommates.json"],
+      "expectations": [
+        "config.people 只写芳姐、胖虎，members 写全六人",
+        "小传跑过 verify_citations.py --strict 清零，非本人所说的引语已修掉",
+        "胖虎的小传体现考研失利→考公上岸、减肥改名，但不写他父亲住院",
+        "芳姐的小传不出现公司名与 offer 金额"
+      ],
+      "assertions": [
+        {"file": "out/chronicle.html"},
+        {"file": "out/portraits/芳姐.md"},
+        {"file": "out/portraits/胖虎.md"},
+        {"metric": "events.recall", "op": ">=", "value": 0.75},
+        {"metric": "quotes.attr_error_rate", "op": "<=", "value": 0.05},
+        {"metric": "quotes.missing_rate", "op": "<=", "value": 0.3},
+        {"metric": "privacy.public_hits", "op": "==", "value": 0}
+      ]
+    },
+    {
+      "id": 3,
+      "name": "bestie-full-with-personas",
+      "truth": "evals/corpus/bestie/truth",
+      "prompt": "这是我和老唐 2025 年一整年的微信私聊（exports/bestie.txt）。我是阿夏（女），老唐是男生，我们是高中同学、十多年的好朋友，不是情侣——他有女朋友小雨，十月求婚了。想做全套：大事记、我们俩各一篇人物志，再给我们俩各做一份人物性格模型（我自己留着看，不发出去）。成品可能会给小雨看，所以别写会让人误会的东西。别写：体检和看病（包括心理咨询）、工资年包、老唐的前任、住址手机号账号密码、我家里的事、小雨的身体状况、老唐公司名。",
+      "expected_output": "out/chronicle.html、out/portraits/阿夏.md 与 老唐.md、out/personas/阿夏.md 与 老唐.md：关系写成挚友而非恋人，人物模型的口头禅、私人频道、发言形态、大五排序与真值接近，公开页不碰禁区。",
+      "files": ["evals/corpus/bestie/exports/bestie.txt"],
+      "expectations": [
+        "config.family_safe 打开，relations 写明挚友非恋人",
+        "人物模型先做日常基线（baseline_sample + prompts/13）与 turnmix 再建模",
+        "人物模型的 0.6 节给出发言类型分布与私人频道",
+        "任何产物里都没有把两人写成暧昧/情侣"
+      ],
+      "assertions": [
+        {"file": "out/chronicle.html"},
+        {"file": "out/personas/阿夏.md"},
+        {"file": "out/personas/老唐.md"},
+        {"metric": "events.recall", "op": ">=", "value": 0.7},
+        {"metric": "privacy.public_hits", "op": "==", "value": 0},
+        {"metric": "quotes.attr_error_rate", "op": "<=", "value": 0.05},
+        {"metric": "personas.gender_ok", "op": "==", "value": 1.0},
+        {"metric": "personas.relation_forbidden", "op": "==", "value": 0},
+        {"metric": "personas.catchphrase", "op": ">=", "value": 0.6},
+        {"metric": "personas.channel", "op": ">=", "value": 0.6},
+        {"metric": "personas.speech_mae", "op": "<=", "value": 0.05},
+        {"metric": "personas.big5_spearman", "op": ">=", "value": 0.5}
+      ]
+    }
+  ]
+}

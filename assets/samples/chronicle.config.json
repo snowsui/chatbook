@@ -1,0 +1,20 @@
+{
+  "title": "样例群大事记",
+  "me": "阿然",
+  "groups": [
+    {"key": "A", "label": "主群", "file": "array.json", "format": "json-array"},
+    {"key": "C", "label": "小分队", "file": "chatlab.json", "format": "chatlab"},
+    {"key": "T", "label": "文本群", "file": "chat.txt", "format": "txt"},
+    {"key": "V", "label": "表格群", "file": "chat.csv", "format": "csv", "columns": {"time": "时间", "sender": "发送者", "content": "内容", "id": "消息ID"}},
+    {"key": "Q", "label": "室友群", "file": "qq.txt", "format": "qq"},
+    {"key": "G", "label": "电报群", "file": "telegram.json", "format": "telegram"}
+  ],
+  "aliases": {"周周": "老周", "10001": "老周", "10002": "阿然", "user222": "阿然", "user111": "米粒", "user333": "青禾"},
+  "members": ["阿然", "青禾", "老周", "豆豆", "米粒"],
+  "people": ["阿然", "老周"],
+  "nicknames": {"老周": ["周哥"]},
+  "gender": {"阿然": "女", "青禾": "女", "老周": "男", "豆豆": "男", "米粒": "女"},
+  "relations": ["老周与米粒是夫妻"],
+  "taboo_extra": [],
+  "author_title": "史官"
+}

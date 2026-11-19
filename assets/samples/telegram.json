@@ -1,0 +1,12 @@
+{
+ "name": "旅行计划",
+ "type": "private_supergroup",
+ "id": 123,
+ "messages": [
+  {"id": 1, "type": "service", "date": "2022-08-01T09:00:00", "date_unixtime": "1659315600", "actor": "Mili", "action": "create_group", "text": ""},
+  {"id": 2, "type": "message", "date": "2022-08-01T09:01:00", "date_unixtime": "1659315660", "from": "Mili", "from_id": "user111", "text": "下个月去成都？"},
+  {"id": 3, "type": "message", "date": "2022-08-01T09:02:00", "date_unixtime": "1659315720", "from": "Aran", "from_id": "user222", "reply_to_message_id": 2, "text": ["可以！看看 ", {"type": "link", "text": "https://example.com"}, " 这个攻略"]},
+  {"id": 4, "type": "message", "date": "2022-08-01T09:03:00", "date_unixtime": "1659315780", "from": "Mili", "from_id": "user111", "photo": "photos/1.jpg", "text": ""},
+  {"id": 5, "type": "message", "date": "2022-08-01T09:04:00", "date_unixtime": "1659315840", "from": "Qinghe", "from_id": "user333", "media_type": "sticker", "sticker_emoji": "😂", "file": "stickers/a.webp", "text": ""}
+ ]
+}

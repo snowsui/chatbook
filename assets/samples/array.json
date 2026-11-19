@@ -1,0 +1,12 @@
+[
+{"time": "2019-03-02 20:01:05", "msg_id": "1001", "sender": "青禾", "sender_id": "u_qinghe", "is_self": false, "type": "text", "content": "周六去爬香山吗"},
+{"time": "2019-03-02 20:01:40", "msg_id": "1002", "sender": "我", "sender_id": "u_aran", "is_self": true, "type": "text", "content": "去！\n几点集合"},
+{"time": "2019-03-02 20:02:10", "msg_id": "1003", "sender": "周周", "sender_id": "u_laozhou", "is_self": false, "type": "reply", "content": "八点吧", "reply_to": {"msg_id": "1001", "sender": "青禾宝宝", "sender_id": "u_qinghe", "content": "周六去爬香山吗"}},
+{"time": "2019-03-02 20:02:30", "msg_id": "1004", "sender": "系统", "is_self": false, "type": "system", "content": "\"周周\" 撤回了一条消息"},
+{"time": "2019-03-02 20:03:00", "msg_id": "1005", "sender": "豆豆", "sender_id": "u_doudou", "is_self": false, "type": "image", "content": ""},
+{"time": "2019-03-02 20:03:20", "msg_id": "1006", "sender": "豆豆", "sender_id": "u_doudou", "is_self": false, "type": "sticker", "content": ""},
+{"time": "2019-03-03 09:15:00", "msg_id": "1007", "sender": "青禾", "sender_id": "u_qinghe", "is_self": false, "type": "article", "title": "香山春季游览攻略", "content": "https://example.com/a"},
+{"time": "2019-03-03 09:16:00", "msg_id": "1008", "sender": "周周", "sender_id": "u_laozhou", "is_self": false, "type": "mini-program", "title": "某某烤鸭店", "content": ""},
+{"time": "2019-03-03 09:17:00", "msg_id": "1009", "sender": "我", "sender_id": "u_aran", "is_self": true, "type": "voice", "content": ""},
+{"time": "2019-03-03 09:18:00", "msg_id": "1010", "sender": "米粒", "sender_id": "u_mili", "is_self": false, "type": "app-card", "content": "某个应用卡片"}
+]

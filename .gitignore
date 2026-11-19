@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.DS_Store
+site/.dev.vars
+.dev.vars
+node_modules/
+.wrangler/
+# 不要把真实聊天导出和产出放进仓库
+exports/
+work/
+out/
+evals/workspace/
