@@ -91,7 +91,7 @@ blocked "$HERE/build_stories.py" --project "$P"
 strict off
 sed -i.bak '$d' "$P/out/stories/01-山行.md"
 # 5. --scan 单独扫描（默认返回 0，--strict 返回非 0）；--add-blocked 追加
-printf '身份证 110101199003071234 银行卡 6222 0212 3456 7891 234\n' > "$P/x.txt"
+printf '身份证 000000199003071234 银行卡 6222 0212 3456 7891 234\n' > "$P/x.txt"
 $PY "$G" --project "$P" --scan "$P/x.txt" >"$P/gate.log" 2>&1 || fail '--scan 默认应返回 0'
 grep -q '身份证号' "$P/gate.log" || fail 'idcard'
 $PY "$G" --project "$P" --scan "$P/x.txt" --strict >"$P/gate.log" 2>&1 && fail '--scan --strict 应返回非 0'
