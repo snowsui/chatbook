@@ -1,4 +1,4 @@
-# group-chat-chronicle · 群聊年鉴
+# chatbook · 群聊年鉴
 
 一个 [Claude Code](https://claude.com/claude-code) skill：把一个老朋友群多年的聊天记录，做成群友会认真看的东西——
 
@@ -24,7 +24,7 @@ A Claude Code skill that turns years of group-chat exports (QQ, Telegram, ChatLa
 需要 Python 3.9 或更新。
 
 ```bash
-git clone https://github.com/snowsui/group-chat-chronicle.git ~/.claude/skills/group-chat-chronicle
+git clone https://github.com/snowsui/chatbook.git ~/.claude/skills/chatbook
 pip install fonttools brotli        # 可选：字体子集嵌入
 pip install cryptography            # 可选：给免费静态托管的公开链接加访问口令（build_locked.py）
 pip install playwright && python3 -m playwright install chromium   # 可选：分享卡片 PNG

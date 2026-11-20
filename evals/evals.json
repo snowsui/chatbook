@@ -1,5 +1,5 @@
 {
-  "skill_name": "group-chat-chronicle",
+  "skill_name": "chatbook",
   "notes": "语料与真值在 evals/corpus/<名>/；先跑 build_corpus.py 生成 exports/。每个测试把 files 复制进一个空项目目录再发 prompt。assertions 由 `python3 evals/score.py --project <项目> --truth <truth> --evals evals/evals.json --eval-id <id>` 机检；expectations 是给人工/grader 看的。阈值来自首轮实测与经验（见 references/10-evaluation.md），改 skill 后按需调整。",
   "evals": [
     {
