@@ -104,6 +104,7 @@ bash scripts/test_scene.sh                        # 群聊戏节拍表与盲测�
 bash scripts/test_stats.sh                        # 数据页：统计口径、敏感词零命中、无时刻群、口头禅口径、英文、网站打包（有 playwright 时加浏览器检查）
 bash scripts/test_share.sh <项目目录> [年份]        # 卡片、年度报告、口令页（需已做完大事记和 person_stats 的项目）
 bash scripts/test_incremental.sh <项目目录>        # 增量更新、月报年报、核心人物（需已有 work/stable/、第一个群是 txt 的项目；init_project 建的即可）
+bash scripts/test_incremental_groups.sh           # 多群增量：基线按群记、各群同步进度不同、中途新接入一个群、旧版基线换算
 ```
 
 前六个自带数据、在临时目录里跑；后两个需要一个真实跑过的项目做源（只读，不改它）。

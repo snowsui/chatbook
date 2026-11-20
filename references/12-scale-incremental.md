@@ -116,7 +116,7 @@ python3 <skill>/scripts/select_core.py --project <dir> [--top 40] [--min-msgs 30
 群还在聊，年鉴已经做好（有 work/stable/），隔一段时间（一个月、一个季度）重新导出一次，只为新内容补事件，已经修订过的月份不动。
 
 ### 基线
-`work/incremental.json` 记着“上次整理到哪”：每个月的消息数、首末条时间、稳定键指纹。第一次在已有项目上用增量时，**用做 stable/ 时的那份导出**跑一次：
+`work/incremental.json` 记着“上次整理到哪”，**按群分开记**：每个群的群名、整理到的最后一条消息时间，以及这个群每个月的消息数、首末条时间、稳定键指纹。各群分开记，几个群各自同步到不同时间点（A 群导到 10 号、B 群导到 20 号），下次 A 群补上 11–19 号的消息也只算 A 群的新增；中途新接入一个群，它在已整理月份里的消息也只当新增读，不会把整月判成 changed。旧版基线（按月、各群混在一起）会自动换算，下次 `--commit` 存成新版。第一次在已有项目上用增量时，**用做 stable/ 时的那份导出**跑一次：
 ```
 python3 <skill>/scripts/incremental.py --project <dir> --commit
 ```
@@ -128,10 +128,10 @@ python3 <skill>/scripts/incremental.py --project <dir> --commit
    ```
    python3 <skill>/scripts/incremental.py --project <dir>          # 先重跑 ingest，再对比
    ```
-   输出一张表，每个有变化的月份归入一类：
+   输出一张表，每个有变化的月份归入一类（已整理的月份逐群比对，说明栏写明是哪个群、从哪条之后新增）：
    - **new**：stable 里没有的月份 → 照常切分段 `work/chunks/<月>_p<i>.txt`，按档位读：lite 走 01；standard/deep 走 00 统一阅读（事件 + 人物证据），再 collect_evidence →（多段时）02 → check_events → freeze。有 state.json 时这些分段自动出现在 pipeline 的 read 阶段，档位规则相同。freeze 只冻结新月份（已有 stable 的会跳过）。
-   - **tail**：旧消息没变、只是末尾多了消息（上次导出截在月中）→ 只把新增部分切成 `work/chunks/<月>_tail_p<i>.txt`。抽取结果写到 `work/part_events/<月>_tail_p<i>.json`（文件头里写明了，不会覆盖 events/）；抽完跑 `incremental.py --merge-tail`：refs 换成稳定键，追加到 `stable/<月>.json` 末尾。已有事件的下标不变，所以以前的修订清单 `E:月份-序号` 继续有效。离旧事件末尾 3 天内的新事件会被点名提示“可能是同一件事”，人工看一眼。
-   - **changed**：旧消息也变了（补导了之前漏掉的消息、导出工具换了、aliases 改了导致发言人变化）→ 整月重新切分段。重新冻结会覆盖该月的人工修订，脚本不自动删；做法是把 `stable/<月>.json` 挪到 `work/stable.bak/`，重抽重冻，再对照旧文件把修订重做一遍。
+   - **tail**：各群的旧消息都没变，只是有群多了消息（上次导出截在月中，或这个群是新接入的）→ 只把新增部分切成 `work/chunks/<月>_tail_p<i>.txt`：各群取自己上次最后一条之后的消息，新接入的群取它本月全部。抽取结果写到 `work/part_events/<月>_tail_p<i>.json`（文件头里写明了，不会覆盖 events/）；抽完跑 `incremental.py --merge-tail`：refs 换成稳定键，追加到 `stable/<月>.json` 末尾、不重排（新接入的群可能带来比旧事件更早的事件，重排会让旧下标变；页面本来就按日期排序显示）。已有事件的下标不变，所以以前的修订清单 `E:月份-序号` 和 top10.json 继续有效。和某个旧事件相隔 3 天内的新事件会被点名提示“可能是同一件事”，人工看一眼。
+   - **changed**：任何一个群的旧消息变了（补导了之前漏掉的消息、导出工具换了、aliases 改了导致发言人变化）→ 整月重新切分段。重新冻结会覆盖该月的人工修订，脚本不自动删；做法是把 `stable/<月>.json` 挪到 `work/stable.bak/`，重抽重冻，再对照旧文件把修订重做一遍。
    `--dry-run` 只看表、不写文件。项目用 pipeline 编排（有 `work/state.json`）时，新月份/changed 月份的分段自动出现在 pipeline 的 read 阶段，尾部分段由 incremental 通过 `pipeline.register()` 登记成 `incremental` 阶段的 `extract:<月>_tail_p<i>`（01 抽事件）和 `merge-tail:<月>`（脚本），之后照常 `pipeline.py status / next`；没有 state.json 就照脚本打印的命令一步步跑。
    - **尾部的人物证据**：tail 分段只用 01 抽事件，不产人物证据。standard/deep 档要把新内容补进小传/模型时，另用 00 读尾部分段（`fill_prompt.py --prompt 00 --files <月>_tail_p1.txt`，卡片写到 work/cards/），再跑 `collect_evidence.py --no-events`（事件已经由 01 + --merge-tail 处理，别让它再写一遍）。
 3. 构建页面：`build_chronicle.py`（以及已上线的话按 07-publish 重新部署）。

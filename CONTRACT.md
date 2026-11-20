@@ -31,7 +31,7 @@
     privacy/{blocked.txt,allowlist.json,last_scan.json}   # 已删除素材清单 / 标记已看过的命中 / 最近一次闸门结果
     scenes/                 # 群聊戏：beats-<seed>.md/.json、scene-<tag>.md、real-<tag>-<n>.md、blind/
     digest/                 # 月报/年报统计 <期>-stats.md（incremental.py --stats）
-    incremental.json        # 增量更新的基线（incremental.py --commit）
+    incremental.json        # 增量更新的基线，按群记（每群 label / last / 各月 n·first·last·fp；incremental.py --commit）
     core.md                 # 大群核心人物排名（select_core.py）
   out/
     chronicle.html          # 大事记单文件版

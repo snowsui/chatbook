@@ -8,15 +8,21 @@
   python3 scripts/incremental.py --project <dir> --commit        # 一轮做完后：把当前各月状态记为基线
   python3 scripts/incremental.py --project <dir> --stats 2024-01 # 写某月（或某年 2024）的群报统计 → work/digest/
 
-基线 work/incremental.json：每月 {n 消息数, first, last 首末条时间, fp 稳定键指纹}，由 --commit 写入。
+基线 work/incremental.json 按“群 × 月”记，由 --commit 写入：
+  {"version": 2, "updated": 记基线的时间,
+   "groups": {群 key: {"label": 群名, "last": 该群整理到的最后一条消息时间,
+                       "months": {月: {n 消息数, first, last 首末条时间, fp 稳定键指纹}}}}}
+各群分开记，所以几个群各自同步到不同时间点、或中途新接入一个群，都只读各群自己的新增部分。
+旧版基线（按月、各群混在一起）会自动换算成按群，下次 --commit 存成新版。
 第一次在已有项目上用：先用做 stable/ 时的那份导出跑一次 --commit 建基线。没有基线时脚本只推测 stable/ 里最晚的那个月：
 该月最晚的 ref 之后还有 ≥ --bootstrap-min 条文字消息才算“末尾有新增”（事件不一定覆盖到月底，所以可能误报），更早的月份视为完整。
 
-月份分三类：
+月份分三类（stable/ 里有的月份逐群比对：某群旧消息没变、只多了新的 → 该群取新增；任何一个群的旧消息变了 → 整月 changed）：
   new      stable/ 里没有 → 整月照常 split_chunks（分段写 work/chunks/<月>_p<i>.txt），走 01 → 02 → check_events → freeze。
-  tail     stable/ 里有、旧消息没变、只是末尾多了消息（导出截在月中的常见情况）→ 只把“旧 last 之后”的消息写成
-           work/chunks/<月>_tail_p<i>.txt，抽取结果进 part_events/<月>_tail_p<i>.json，再用 --merge-tail 追加进 stable/
-           （已有事件的下标不变，修订清单 E:月份-序号 继续有效）。
+  tail     stable/ 里有、各群旧消息都没变、只是有群多了消息 → 只把新增消息（各群在自己的 last 之后；
+           基线里这个月没有的群 = 新接入，取它本月全部）写成 work/chunks/<月>_tail_p<i>.txt，
+           抽取结果进 part_events/<月>_tail_p<i>.json，再用 --merge-tail 追加到 stable/ 末尾
+           （不重排，已有事件的下标不变，修订清单 E:月份-序号、top10.json 继续有效；页面按日期排序显示）。
   changed  stable/ 里有、但旧消息也变了（重新导出补了之前漏掉的消息、改了昵称归一等）→ 整月重新 split；
            重新冻结会覆盖该月的修订，脚本只打印做法，不自动删除 stable/ 文件。
 work/state.json 存在时（项目用 pipeline.py 编排）通过 pipeline.register() 登记任务（同一格式）：
@@ -54,14 +60,25 @@ def fp(keys):
     return hashlib.sha1('\n'.join(keys).encode('utf-8')).hexdigest()[:16]
 
 
+def gkey(m):
+    """群 key：稳定键 k 的前缀（A:123 → A）。群名可能改，key 不变。"""
+    return m['k'].split(':', 1)[0]
+
+
+def summarize(ms):
+    return {'n': len(ms), 'first': ms[0]['t'], 'last': ms[-1]['t'], 'fp': fp([m['k'] for m in ms])}
+
+
 def month_stats(allm):
-    out = {}
+    """返回 ({群 key: {月: 统计}}, {月: [消息]}, {群 key: 群名})。"""
     by = collections.defaultdict(list)
+    byg = collections.defaultdict(lambda: collections.defaultdict(list))
+    labels = {}
     for m in allm:
         by[m['t'][:7]].append(m)
-    for mon, ms in by.items():
-        out[mon] = {'n': len(ms), 'first': ms[0]['t'], 'last': ms[-1]['t'], 'fp': fp([m['k'] for m in ms])}
-    return out, by
+        byg[gkey(m)][m['t'][:7]].append(m)
+        labels[gkey(m)] = m['g']
+    return {g: {mon: summarize(ms) for mon, ms in d.items()} for g, d in byg.items()}, by, labels
 
 
 def load_json(p, default):
@@ -74,46 +91,84 @@ def stable_last_ref(a, mon, kt):
     return max(ts) if ts else None
 
 
+def load_base(a, by):
+    """读基线 → {群 key: {月: 统计}}；没有基线返回 None。
+    旧版基线（按月、各群混在一起）就地换算：该月 last 之前的消息条数和指纹对得上就按群拆开，对不上的月份不记（会判成 changed）。"""
+    d = load_json(a.work / 'incremental.json', None)
+    if d is None:
+        return None
+    if 'groups' in d:
+        return {g: x['months'] for g, x in d['groups'].items()}
+    out = collections.defaultdict(dict)
+    for mon, b in d.get('months', {}).items():
+        old = [m for m in by.get(mon, []) if m['t'] <= b['last']]
+        if len(old) != b['n'] or fp([m['k'] for m in old]) != b['fp']:
+            continue
+        gs = collections.defaultdict(list)
+        for m in old:
+            gs[gkey(m)].append(m)
+        for g, ms in gs.items():
+            out[g][mon] = summarize(ms)
+    print('提示：基线是旧版（各群混在一起），已按群换算；这一轮做完 --commit 会存成新版。')
+    return dict(out)
+
+
 def classify(a, allm):
-    cur, by = month_stats(allm)
-    base = load_json(a.work / 'incremental.json', {}).get('months')
+    cur, by, labels = month_stats(allm)
+    base = load_base(a, by)
     stable = {f.stem for f in (a.work / 'stable').glob('*.json')}
     kt = {m['k']: m['t'] for m in allm}
-    plan = []  # (月份, 类别, 旧 last, 说明)
+    plan = []  # (月份, 类别, {群 key: 截止时间，None = 该群本月全部}, 说明)
     if base is None:
         print('警告：没有基线 work/incremental.json，只推测 stable/ 最晚那个月的尾部新增（建议做完这一轮后跑 --commit）。')
-    for mon in sorted(cur):
-        c = cur[mon]
+    for mon in sorted(by):
         if mon not in stable:
-            plan.append((mon, 'new', None, f'{c["n"]} 条'))
+            plan.append((mon, 'new', None, f'{len(by[mon])} 条'))
             continue
         if base is not None:
-            b = base.get(mon)
-            if b is None:
+            if not any(mon in bg for bg in base.values()):
                 plan.append((mon, 'changed', None, '有 stable 但基线里没有这个月'))
                 continue
-            if b['n'] == c['n'] and b['last'] == c['last'] and b['fp'] == c['fp']:
-                continue
-            old = [m for m in by[mon] if m['t'] <= b['last']]
-            if len(old) == b['n'] and fp([m['k'] for m in old]) == b['fp']:
-                plan.append((mon, 'tail', b['last'], f'旧 {b["n"]} 条不变，末尾新增 {c["n"] - b["n"]} 条（{b["last"]} 之后）'))
-            else:
-                plan.append((mon, 'changed', None, f'旧 {b["n"]} 条 → 现 {c["n"]} 条，旧消息也有变化'))
+            cuts, notes, bad = {}, [], []
+            for g in sorted(set(cur) | set(base)):
+                c, b = cur.get(g, {}).get(mon), base.get(g, {}).get(mon)
+                name = labels.get(g, g)
+                if b == c:
+                    continue
+                if c is None:
+                    bad.append(f'{name}：基线有 {b["n"]} 条，这次没有了')
+                elif b is None:
+                    cuts[g] = None
+                    notes.append(f'{name}：新接入，本月 {c["n"]} 条')
+                else:
+                    old = [m for m in by[mon] if gkey(m) == g and m['t'] <= b['last']]
+                    if len(old) == b['n'] and fp([m['k'] for m in old]) == b['fp']:
+                        cuts[g] = b['last']
+                        notes.append(f'{name}：旧 {b["n"]} 条不变，{b["last"]} 之后新增 {c["n"] - b["n"]} 条')
+                    else:
+                        bad.append(f'{name}：旧 {b["n"]} 条 → 现 {c["n"]} 条，旧消息也有变化')
+            if bad:
+                plan.append((mon, 'changed', None, '；'.join(bad)))
+            elif cuts:
+                plan.append((mon, 'tail', cuts, '；'.join(notes)))
         elif mon == max(stable):  # 没有基线：只推测 stable 里最晚的那个月（上次导出多半截在这个月中间），更早的月份视为完整
             last = stable_last_ref(a, mon, kt)
             if last is None:
                 continue
             tail = [m for m in by[mon] if m['t'] > last and kind(m['c']) == '文字']
             if len(tail) >= a.bootstrap_min:
-                plan.append((mon, 'tail', last, f'（推测）stable 最晚 ref {last} 之后有 {len(tail)} 条文字消息'))
-    gone = sorted(set(base or {}) - set(cur))
+                plan.append((mon, 'tail', {g: last for g in cur if mon in cur[g]},
+                             f'（推测）stable 最晚 ref {last} 之后有 {len(tail)} 条文字消息'))
+    gone = sorted({mon for bg in (base or {}).values() for mon in bg} - set(by))
     for mon in gone:
         print(f'警告：{mon} 在基线里有、这次导出里没有了——导出不全？先别 commit。')
     return plan, by
 
 
-def write_tail(a, mon, msgs, last):
-    tail = [m for m in msgs if m['t'] > last]
+def write_tail(a, mon, msgs, cuts):
+    tail = [m for m in msgs if gkey(m) in cuts and (cuts[gkey(m)] is None or m['t'] > cuts[gkey(m)])]
+    labels = {gkey(m): m['g'] for m in msgs}
+    since = '、'.join(f'{labels[g]} 本月全部（新接入）' if c is None else f'{labels[g]} {c} 之后' for g, c in sorted(cuts.items()))
     lines = ['%s|%s|%s|%s: %s' % (m['id'], m['g'], m['t'][8:16], m['s'], m['c']) for m in tail if m['c'] not in SKIP_LINE]
     parts, cur, size = [], [], 0
     for line in lines:
@@ -127,10 +182,10 @@ def write_tail(a, mon, msgs, last):
     names = []
     for i, p in enumerate(parts):
         name = f'{mon}_tail_p{i + 1}.txt'
-        head = ('月份 %s（增量尾部 %d/%d，%s 之后的新消息，%s 至 %s 日）。本月此前已整理，这里只有新增部分：%d 条消息，去掉纯图片/表情后 %d 行；'
+        head = ('月份 %s（增量尾部 %d/%d，新消息：%s；%s 至 %s 日）。本月此前已整理，这里只有新增部分：%d 条消息，去掉纯图片/表情后 %d 行；'
                 '本文件 %d 条（共 %d 行，含 3 行文件头）。\n'
                 '输出写 work/part_events/%s.json（不要写 work/events/）；跨到旧消息的事件只写新增部分，旧部分已收过。\n\n') % (
-            mon, i + 1, len(parts), last, p[0].split('|')[2][:2], p[-1].split('|')[2][:2], len(tail), len(lines),
+            mon, i + 1, len(parts), since, p[0].split('|')[2][:2], p[-1].split('|')[2][:2], len(tail), len(lines),
             len(p), len(p) + 3, name[:-4])
         (a.work / 'chunks' / name).write_text(head + '\n'.join(p), encoding='utf-8')
         names.append(name)
@@ -178,9 +233,9 @@ def run_plan(a):
     (a.work / 'chunks').mkdir(parents=True, exist_ok=True)
     full = [mon for mon, cat, _, _ in plan if cat in ('new', 'changed')]
     files = split_months(a, full)
-    for mon, cat, last, _ in plan:
+    for mon, cat, cuts, _ in plan:
         if cat == 'tail':
-            files += write_tail(a, mon, by[mon], last)
+            files += write_tail(a, mon, by[mon], cuts)
     files.sort()
     changed = [mon for mon, cat, _, _ in plan if cat == 'changed']
     tails = [mon for mon, cat, _, _ in plan if cat == 'tail']
@@ -229,7 +284,7 @@ def merge_tail(a):
             continue
         old_n = len(st['events'])
         old_keys = {r for e in st['events'] for r in e.get('refs') or []}
-        last_old = max((e.get('date') or '' for e in st['events']), default='')
+        old_days = [datetime.strptime(e['date'], '%Y-%m-%d') for e in st['events'] if e.get('date')]
         added = miss = 0
         near = []
         for f in fs:
@@ -242,32 +297,36 @@ def merge_tail(a):
                     continue
                 st['events'].append(e)
                 added += 1
-                if last_old and e.get('date') and (datetime.strptime(e['date'], '%Y-%m-%d')
-                                                   - datetime.strptime(last_old, '%Y-%m-%d')).days <= 3:
+                if e.get('date') and any(abs((datetime.strptime(e['date'], '%Y-%m-%d') - d).days) <= 3 for d in old_days):
                     near.append(e.get('title'))
-        st['events'].sort(key=lambda e: e.get('date') or '')  # 稳定排序：旧事件在前，下标不变（新事件日期不早于旧 last）
+        # 不重排：新接入的群可能带来比旧事件更早的事件，重排会让旧事件下标变（修订清单、top10.json 失效）；页面按日期排序显示
         sp.write_text(json.dumps(st, ensure_ascii=False, indent=1), encoding='utf-8')
         done_dir.mkdir(parents=True, exist_ok=True)
         for f in fs:
             f.rename(done_dir / f.name)
         print(f'{mon}: 原 {old_n} 个事件 + 新增 {added} 个' + (f'，{miss} 个 ref 找不到已丢弃' if miss else '')
-              + (f'；离旧事件末尾 3 天内的（可能和旧事件是同一件，请人工看）：{"、".join(near)}' if near else '')
+              + (f'；和某个旧事件相隔 3 天内的（可能是同一件，请人工看）：{"、".join(near)}' if near else '')
               + '；month_summary 未改，需要的话用 apply_fixes 改 M:' + mon)
 
 
 def commit(a):
     allm = load_all(a)
-    cur, _ = month_stats(allm)
+    cur, by, labels = month_stats(allm)
     stable = {f.stem for f in (a.work / 'stable').glob('*.json')}
-    base = load_json(a.work / 'incremental.json', {'months': {}})
-    missing = sorted(set(cur) - stable)
-    for mon in sorted(cur):
-        if mon in stable:
-            base['months'][mon] = cur[mon]
-    base['updated'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    base['source_last'] = allm[-1]['t']
-    (a.work / 'incremental.json').write_text(json.dumps(base, ensure_ascii=False, indent=1), encoding='utf-8')
-    print(f'基线已更新：{len(base["months"])} 个月 → {a.work / "incremental.json"}'
+    base = load_base(a, by) or {}
+    for mon in sorted(set(by) & stable):  # 这次导出里有的月份按当前状态重记（不在导出里的月份保留旧基线）
+        for g in set(cur) | set(base):
+            if mon in cur.get(g, {}):
+                base.setdefault(g, {})[mon] = cur[g][mon]
+            else:
+                base.get(g, {}).pop(mon, None)
+    groups = {g: {'label': labels.get(g, g), 'last': max(x['last'] for x in ms.values()), 'months': dict(sorted(ms.items()))}
+              for g, ms in sorted(base.items()) if ms}
+    out = {'version': 2, 'updated': datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'groups': groups}
+    (a.work / 'incremental.json').write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding='utf-8')
+    missing = sorted(set(by) - stable)
+    print(f'基线已更新 → {a.work / "incremental.json"}：'
+          + '；'.join(f'{x["label"]} {len(x["months"])} 个月、整理到 {x["last"]}' for x in groups.values())
           + (f'；这些月份还没进 stable，未记入：{"、".join(missing)}' if missing else ''))
     left = sorted((a.work / 'part_events').glob('*_tail_p*.json'))
     if left:
