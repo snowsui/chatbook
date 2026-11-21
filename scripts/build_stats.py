@@ -503,7 +503,7 @@ page = fill(tpl, {
     'DATA': data_json, 'JS': js.replace('</script', '<\\/script'),
 })
 plain = re.sub(r'<[^>]+>', '', tpl) + lede + js + data_json + '0123456789'
-brush = name + seal + ''.join(PEOPLE) + ('数据群志概览时间消息类型榜单复读口头禅与词云互动小团体数据卡水王每日打卡斗图夜猫子早鸟深海潜水员'
+brush = name + seal + ''.join(PEOPLE) + ('数据群志概览时间消息类型榜单复读口头禅与词云互动小团体数据卡话痨每日打卡斗图夜猫子早鸟深海潜水员'
                                          if not EN else 'OverviewTimeMessagetypesLeaderboardsEchoesCatchphrasesInteractionsCirclesDatacards')
 fonts = font_css(proj, cfg, {'Ink': plain, 'Hand': plain, 'Brush': brush})
 page = page.replace('/*FONTS*/', fonts)
