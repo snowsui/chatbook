@@ -84,7 +84,7 @@ rm .dev.vars            # 测完就删，别留着明文密码，也别提交
 cd site && npx wrangler deploy
 ```
 
-默认部署到 `<worker_name>.<你的账号>.workers.dev`（同样要登录）。要用自己的子域：
+默认部署到 `<worker_name>.<你的账号>.workers.dev`（同样要登录）。**群友在中国大陆时，`workers.dev` 基本打不开，必须用自己的子域**（不需要 ICP 备案），部署后用手机流量在微信里实测一次。要用自己的子域：
 
 1. 域名要托管在同一个 Cloudflare 账号下；
 2. 编辑 `site/wrangler.toml`：`workers_dev = false`，取消 `routes` 注释，`pattern` 改成你的子域（如 `chronicle.example.com`），`custom_domain = true` 会自动建 DNS 记录和证书；

@@ -20,6 +20,6 @@ Cloudflare Worker + 静态资源（`[assets]` + `run_worker_first = true`，所�
 
 ## 常见问题
 
-- **访问慢、手机打不开**：先看域名的 Cloudflare 安全级别，处理办法见 assets/site/README.md 第 4 节。再看页面体积：内嵌字体的整页要抽成独立文件（package_site 会自动抽）。
+- **访问慢、手机打不开**：群友在国内时先确认绑的是自有域名（`*.workers.dev` 在国内基本打不开，见 references/11-share-hosting.md「在国内打得开吗」）；再看域名的 Cloudflare 安全级别，处理办法见 assets/site/README.md 第 4 节。再看页面体积：内嵌字体的整页要抽成独立文件（package_site 会自动抽）。
 - **改了内容不生效**：确认改的是数据源（stable/ 或 out/*.md）并重新 build；单文件版和网站版是两条构建线。
 - **只想发给群里看**：txt 合集（小剧场）、单文件 HTML、分享卡片 PNG 都能直接发，不一定要上线。单文件默认不加密，发给谁由用户决定；要放到免费静态托管（GitHub Pages / Vercel / Netlify）做公开链接时，可用 `build_locked.py` 给链接加访问口令（口令另走渠道；安全边界和托管选型见 references/11-share-hosting.md）。
