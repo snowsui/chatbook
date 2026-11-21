@@ -150,7 +150,7 @@ txt / qq / 没有 id 列的 csv 的稳定键是 `L<时间戳>_<同秒序号>`。
 
 ## 八、配合定时任务
 
-增量的“读”和“写”要子任务执行，所以定时任务分两段：**脚本部分可以全自动，抽取和写作部分交给 Claude 的定时任务或下次打开会话时做**。
+增量的“读”和“写”要子任务执行，所以定时任务分两段：**脚本部分可以全自动，抽取和写作部分交给 AI 工具的定时任务或下次打开会话时做**。
 
 ### 每月 1 号自动准备（cron / launchd）
 导出本身通常要手动（途径见 references/00-export-guide.md）；若用户的导出方式支持命令行，可以放进同一个脚本：
@@ -159,15 +159,15 @@ txt / qq / 没有 id 列的 csv 的稳定键是 `L<时间戳>_<同秒序号>`。
 # ~/bin/chronicle-monthly.sh
 set -e
 P=~/chronicle/my-group
-SK=~/.claude/skills/chatbook
+SK=<chatbook 所在目录>
 # <你的导出命令> --out "$P/exports/main.json"        # 若导出方式有命令行
 python3 "$SK/scripts/incremental.py" --project "$P" > "$P/work/incremental-$(date +%Y%m).log" 2>&1
 ```
 - cron：`0 9 1 * * /bin/bash ~/bin/chronicle-monthly.sh`
 - macOS launchd：`~/Library/LaunchAgents/com.me.chronicle.plist`，`StartCalendarInterval` 设 `Day=1, Hour=9`，`ProgramArguments` 指向上面的脚本；`launchctl load` 后生效。注意 launchd 的环境里没有 shell 的 PATH，脚本里写 python3 的绝对路径。
 
-### 抽取与写作（Claude 侧）
-- **Claude Code 定时任务**（若环境有 `/schedule` 或类似的定时 agent）：每月 2 号跑一个任务，提示词写：“在 <项目目录> 按 chatbook 的增量流程：读 work/incremental-*.log 里列出的分段，用 prompts/01 抽取 → check_events → freeze / merge-tail → build_chronicle → --stats 上个月 → 用 prompts/17 写月报，写完不要 commit 基线，等我确认”。
+### 抽取与写作（AI 侧）
+- **AI 工具的定时任务**（若环境支持定时 agent）：每月 2 号跑一个任务，提示词写：“在 <项目目录> 按 chatbook 的增量流程：读 work/incremental-*.log 里列出的分段，用 prompts/01 抽取 → check_events → freeze / merge-tail → build_chronicle → --stats 上个月 → 用 prompts/17 写月报，写完不要 commit 基线，等我确认”。
 - 没有定时 agent：用户下次打开会话说“更新年鉴”，主控读日志接着做。
 - **基线 `--commit` 留给人确认后再跑**（月报看过、页面看过），不放进全自动部分：自动 commit 会把出错的一轮也记成“已完成”。
 

@@ -93,7 +93,7 @@ python3 scripts/pipeline.py --project <dir> reset portraits         # 任务或�
 - **短分段自动合批**：read 阶段把相邻的短分段合成一批派给一个子任务（合计不超过 `--batch-lines` 行，默认 1000；长分段、补读剩余行的分段单独派；`--batch-lines 0` 恢复一段一个任务）。一批只占一个并发名额，fill_prompt 一条命令带多个 `--files`，说明文件名形如 `read-<首段>--<末段>.md`；完成判定仍按每个分段各自的产出，所以合批不影响自动判定和补派。
 - 派子任务时，在 Agent 说明里给 `next` 打印的说明文件绝对路径，让子任务先用 Read 读完全文再照做（不用把全文贴进去）。说明里的自检命令（check_events，绝对路径）与 check 阶段同一口径，子任务交稿前自己跑。
 - `next` 只在依赖满足的阶段里挑 todo/failed 的任务；子任务数受 `--limit` 并发上限约束（进行中的也占名额），脚本任务另列、不占名额。每个任务给出：id、prompt、`fill_prompt.py` 的完整命令（`--out work/prompts/<任务>.md`；路径已加引号，可直接复制）、前置脚本（如 baseline_sample、holdout）、模型建议、产出路径。列出即记为 doing、尝试次数 +1（`--peek` 不记）；尝试满 3 次仍失败的列为“需人工”。
-- 模型建议：**cheap** = 便宜模型（Claude Code 里派子任务时选 sonnet 或 haiku），**strong** = 强模型（选 opus）。
+- 模型建议：**cheap** = 便宜快速的模型（如 Claude Sonnet / Haiku），**strong** = 最强的模型（如 Claude Opus）。
 - **自动判定**：每次运行检查产出——存在且机检通过 → done；存在但不过 → failed（附原因，如“没读完 5/9 行”“引语机检：问题 1、未标注 1”）；done 的产出被删或上游更新（卡片比 evidence 新、事件比 check.txt 新、stable 比页面新…）→ 回 todo。手动 `mark done` 的不再自动改。
 - `reset` 只清状态；产出还在且机检通过，下次又会自动 done——要重做先删/挪走产出。
 

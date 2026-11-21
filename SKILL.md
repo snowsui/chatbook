@@ -81,7 +81,7 @@ description: 把用户手里的群聊导出文件（一个或多个群、多个�
 - **用 pipeline 驱动**：`pipeline.py status` 看进度和下一步，`pipeline.py next --limit <并发>` 领下一批任务（给出 prompt、填说明的完整命令、模型建议、产出路径）。进度在 `work/state.json`，跨会话可续；产出写好、机检通过就自动标 done。增量更新（incremental.py）登记的任务也在里面。
   pipeline 管的是 ①②④⑤⑥ 这条主线（导入 → 统一阅读 → 大事记 → 统计与基线 → 小传 → 人物模型与验证 → 终审 → 人物志页面）；小剧场（③）、数据页（⑮）、本人确认（⑨）、分享卡片与年度报告（⑪）、站点打包（⑦）、增量与月报（⑫）、群聊戏（⑭）按各自文档手动跑。
 - **读原文一律用统一阅读**（prompts/00）：一个分段读一遍，同时产出事件和人物证据（每条带消息 id），`collect_evidence.py` 汇总成每人的 evidence.md。lite 档只做大事记时用 01。
-- **并行子任务**：读原文、日常标注、盲测这类“量大、可分块”的活交给并行子任务（pipeline 标 cheap：Claude Code 里选 sonnet 或 haiku）；写作、建模、审稿、终审用强模型（标 strong：选 opus）。一次并发有上限时，排队补发。
+- **并行子任务**：读原文、日常标注、盲测这类“量大、可分块”的活交给并行子任务（pipeline 标 cheap：便宜快速的模型，如 Claude Sonnet / Haiku）；写作、建模、审稿、终审用强模型（标 strong：最强的模型，如 Claude Opus）。一次并发有上限时，排队补发。
 - **给子任务的说明**一律用 prompts/ 下的模板填空，不要临场口述——临场口述最容易漏掉禁区和格式。pipeline next 会给出命令，手动填也可以：
   ```
   python3 <skill>/scripts/fill_prompt.py --project <dir> --prompt 00 --files 2020-05_p1.txt --out work/prompts/00-a.md

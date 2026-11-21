@@ -44,7 +44,7 @@ grep -q "verify_citations.py --project" "$P/f.md" || { echo '09 里的 verify_ci
 run "$HERE/pipeline.py" --project "$P" next --limit 2 --batch-lines 0 | tee "$P/next.txt"
 [ "$(grep -c '^## read:' "$P/next.txt")" = 2 ]                   # 并发上限 2（--batch-lines 0：一段一个任务）
 grep -q '^## person-stats  \[脚本' "$P/next.txt"                  # 脚本阶段不占名额
-grep -q '子任务 · 便宜模型（Claude Code 子任务选 sonnet 或 haiku）' "$P/next.txt"
+grep -q '子任务 · 便宜模型（如 Claude Sonnet / Haiku）' "$P/next.txt"
 grep -q -- "--prompt 00 --files 2015-09_p1.txt --set 'people=阿然、老周'" "$P/next.txt"
 run "$HERE/pipeline.py" --project "$P" next --limit 2 --batch-lines 0 | tee "$P/next2.txt"
 grep -q '没有可派' "$P/next2.txt" || grep -q '^## person-stats' "$P/next2.txt"   # 两个 read 在 doing，名额已满

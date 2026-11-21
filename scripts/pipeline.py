@@ -75,7 +75,7 @@ BY['incremental'] = dict(name='incremental', kind='llm', unit='extra', prompt='0
                          desc='增量更新：尾部分段抽事件（01）→ merge-tail 并进 stable')
 INC_KIND = {'extract': 'llm', 'merge-tail': 'script'}
 RENAMED = {'stats': 'person-stats'}  # 早期阶段名 → 现名（state.json 与 reset 照样认）
-MODEL = {'cheap': '便宜模型（Claude Code 子任务选 sonnet 或 haiku）', 'strong': '强模型（Claude Code 子任务选 opus）'}
+MODEL = {'cheap': '便宜模型（如 Claude Sonnet / Haiku）', 'strong': '强模型（如 Claude Opus）'}
 
 
 def tier_of(cfg, override=None):

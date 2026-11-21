@@ -1,6 +1,6 @@
 # chatbook · 群聊年鉴
 
-一个 [Claude Code](https://claude.com/claude-code) skill：把一个老朋友群多年的聊天记录，做成群友会认真看的东西——
+一个 skill（标准 SKILL.md 格式，放进支持 skill 的 AI 编程工具即可使用）：把一个老朋友群多年的聊天记录，做成群友会认真看的东西——
 
 - **大事记**：按月的事件编年史，带原文引用、搜索、年度十大、群友榜；单文件网页或登录版网站。
 - **小剧场**：以群友为原型、用化名写的多体裁同人短篇（武侠、宫廷、推理、科幻、童话……）。
@@ -17,14 +17,14 @@
 
 ## English
 
-A Claude Code skill that turns years of group-chat exports (QQ, Telegram, ChatLab, a generic JSON array, CSV, or hand-copied text) into a "yearbook" for the people in the chat: a month-by-month event timeline website, non-fiction profiles where every quote is traceable to a message, optional fan fiction and personality models, and a zero-LLM-cost stats dashboard. It ships with a privacy scan that lists likely leaks at build time (warn-only by default, with an optional strict mode that blocks the build) and optional per-person review pages; whether and where to publish is up to the creator. Prompts and docs are written in Chinese; English chats are supported experimentally (event extraction, stats and the dashboard); use the lite tier for them, since the unified reader (00) used by standard/deep has no English version and those tiers need manual review. Triggers: "group chat yearbook", "turn our chat export into a website", "chat history timeline".
+An agent skill (standard SKILL.md format) that turns years of group-chat exports (QQ, Telegram, ChatLab, a generic JSON array, CSV, or hand-copied text) into a "yearbook" for the people in the chat: a month-by-month event timeline website, non-fiction profiles where every quote is traceable to a message, optional fan fiction and personality models, and a zero-LLM-cost stats dashboard. It ships with a privacy scan that lists likely leaks at build time (warn-only by default, with an optional strict mode that blocks the build) and optional per-person review pages; whether and where to publish is up to the creator. Prompts and docs are written in Chinese; English chats are supported experimentally (event extraction, stats and the dashboard); use the lite tier for them, since the unified reader (00) used by standard/deep has no English version and those tiers need manual review. Triggers: "group chat yearbook", "turn our chat export into a website", "chat history timeline".
 
 ## 安装
 
 需要 Python 3.9 或更新。
 
 ```bash
-git clone https://github.com/snowsui/chatbook.git ~/.claude/skills/chatbook
+git clone https://github.com/snowsui/chatbook.git   # 放进你所用 AI 工具的 skills 目录
 pip install fonttools brotli        # 可选：字体子集嵌入
 pip install cryptography            # 可选：给免费静态托管的公开链接加访问口令（build_locked.py）
 pip install playwright && python3 -m playwright install chromium   # 可选：分享卡片 PNG
@@ -36,7 +36,7 @@ pip install jieba                   # 可选：数据页中文词云分词（没
 
 ## 用法
 
-在 Claude Code 里说，例如：
+在你的 AI 工具里说，例如：
 
 > 我有几个群的聊天导出（~/exports/ 里，有 json 也有 txt），想做一个群大事记网站，再给几个老朋友写人物小传。
 
@@ -44,7 +44,7 @@ pip install jieba                   # 可选：数据页中文词云分词（没
 
 > 这是我们宿舍群的 QQ 导出，帮我出一个数据页，看看谁是话痨、谁是夜猫子。
 
-Claude 会先导入（自动识别格式和编码、把同一个群的几次导出合并）、列出跨群合并好的人物编号表让你一句话圈定核心人物，再给你看三档的成本估算，和你确认：要做哪些模块、**性别与关系**、额外禁区与敏感词、要不要打开隐私拦截、哪些群的原文可以公开、网站叫什么，然后写 `chronicle.config.json` 开工。
+AI 会先导入（自动识别格式和编码、把同一个群的几次导出合并）、列出跨群合并好的人物编号表让你一句话圈定核心人物，再给你看三档的成本估算，和你确认：要做哪些模块、**性别与关系**、额外禁区与敏感词、要不要打开隐私拦截、哪些群的原文可以公开、网站叫什么，然后写 `chronicle.config.json` 开工。
 
 ### 支持的输入
 
@@ -54,7 +54,7 @@ Claude 会先导入（自动识别格式和编码、把同一个群的几次导�
 
 ## 要花多少
 
-数据页零 LLM 成本；其余按读的字数、要写的人数和档位估。下表是 `scripts/estimate.py` 的估算（子任务 cheap 按 Claude Sonnet、strong 按 Claude Opus 的 API 单价，按缓存价算，±50%，仅供参考，价格以官方当前价格为准；用订阅额度跑的不按这个算）：
+数据页零 LLM 成本；其余按读的字数、要写的人数和档位估。下表是 `scripts/estimate.py` 的估算（子任务 cheap 按 Claude Sonnet、strong 按 Claude Opus 的 API 单价，用别家模型按各自单价，按缓存价算，±50%，仅供参考，价格以官方当前价格为准；用订阅额度跑的不按这个算）：
 
 | 规模 | lite（只做大事记） | standard（+ 人物志） | deep（+ 人物模型与验证） |
 |---|---|---|---|
@@ -68,7 +68,7 @@ Claude 会先导入（自动识别格式和编码、把同一个群的几次导�
 
 1. 导入：`python3 scripts/init_project.py --project <项目目录> <导出文件或目录>`
 2. 数据页（零 LLM 成本）：`python3 scripts/build_stats.py --project <项目目录>` → `out/stats.html`
-3. lite 档大事记：config 里写 `"tier": "lite"`，在 Claude Code 里让它按 pipeline 跑 → `out/chronicle.html`
+3. lite 档大事记：config 里写 `"tier": "lite"`，让 AI 按 pipeline 跑 → `out/chronicle.html`
 4. 看过再决定要不要 standard（人物志）/ deep（人物模型）。
 
 ## 目录
